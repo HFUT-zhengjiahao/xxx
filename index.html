@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>离散数学可视化实验室</title>
+    <style>
+      :root {
+        --primary-color: #2563eb;
+        --bg-color: #f8fafc;
+        --card-bg: #ffffff;
+        --text-main: #1e293b;
+        --text-sub: #64748b;
+      }
+
+      body {
+        font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        background-color: var(--bg-color);
+        color: var(--text-main);
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        min-height: 100vh;
+      }
+
+      /* 头部样式 */
+      header {
+        text-align: center;
+        padding: 3rem 1rem;
+        max-width: 800px;
+        width: 100%;
+      }
+
+      h1 {
+        font-size: 2.5rem;
+        margin-bottom: 0.5rem;
+        color: var(--primary-color);
+      }
+
+      p.subtitle {
+        color: var(--text-sub);
+        font-size: 1.1rem;
+        margin-bottom: 2rem;
+      }
+
+      /* 搜索框 */
+      .search-container {
+        width: 100%;
+        max-width: 500px;
+        margin: 0 auto 2rem auto;
+        position: relative;
+      }
+
+      input#search {
+        width: 100%;
+        padding: 12px 20px;
+        border-radius: 50px;
+        border: 2px solid #e2e8f0;
+        font-size: 1rem;
+        outline: none;
+        transition: border-color 0.3s, box-shadow 0.3s;
+        box-sizing: border-box;
+      }
+
+      input#search:focus {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+      }
+
+      /* 网格布局 */
+      .grid-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 1.5rem;
+        width: 90%;
+        max-width: 1200px;
+        padding-bottom: 3rem;
+      }
+
+      /* 卡片样式 */
+      .card {
+        background: var(--card-bg);
+        border-radius: 16px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05),
+          0 2px 4px -1px rgba(0, 0, 0, 0.03);
+        transition: transform 0.2s, box-shadow 0.2s;
+        text-decoration: none;
+        color: inherit;
+        display: flex;
+        flex-direction: column;
+        border: 1px solid #e2e8f0;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
+          0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        border-color: var(--primary-color);
+      }
+
+      .tag {
+        display: inline-block;
+        font-size: 0.75rem;
+        padding: 4px 10px;
+        border-radius: 12px;
+        margin-bottom: 10px;
+        font-weight: 600;
+        width: fit-content;
+      }
+
+      /* 不同分类的颜色标签 */
+      .tag.graph {
+        background-color: #dbeafe;
+        color: #1e40af;
+      } /* 蓝色: 图论 */
+      .tag.logic {
+        background-color: #fce7f3;
+        color: #9d174d;
+      } /* 粉色: 逻辑 */
+      .tag.set {
+        background-color: #dcfce7;
+        color: #166534;
+      } /* 绿色: 集合 */
+      .tag.algo {
+        background-color: #ffedd5;
+        color: #9a3412;
+      } /* 橙色: 算法 */
+      .tag.default {
+        background-color: #f1f5f9;
+        color: #475569;
+      }
+
+      .card h3 {
+        margin: 0 0 0.5rem 0;
+        font-size: 1.25rem;
+      }
+
+      .card p {
+        margin: 0;
+        font-size: 0.9rem;
+        color: var(--text-sub);
+        line-height: 1.5;
+      }
+
+      .arrow {
+        margin-top: auto;
+        padding-top: 1rem;
+        font-weight: bold;
+        color: var(--primary-color);
+        display: flex;
+        align-items: center;
+        font-size: 0.9rem;
+      }
+
+      .arrow span {
+        transition: margin-left 0.2s;
+      }
+
+      .card:hover .arrow span {
+        margin-left: 5px;
+      }
+
+      /* 底部版权 */
+      footer {
+        margin-top: auto;
+        padding: 2rem;
+        color: var(--text-sub);
+        font-size: 0.8rem;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Discrete Math Visuals</h1>
+      <p class="subtitle">离散数学可视化交互演示合集</p>
+
+      <div class="search-container">
+        <input
+          type="text"
+          id="search"
+          placeholder="搜索知识点 (例如: Dijkstra, 集合, 真值表...)"
+        />
+      </div>
+    </header>
+
+    <div id="content" class="grid-container">
+      <!-- 卡片将通过 JavaScript 自动生成在这里 -->
+    </div>
+
+    <footer>
+      <p>Designed for Discrete Mathematics Learning</p>
+    </footer>
+
+    <script>
+      // ==========================================
+      //  配置区域：在这里添加你的可视化文件
+      // ==========================================
+      const projects = [
+        // 示例数据（你可以修改或删除）
+        {
+          title: "相容关系",
+          desc: "相容关系，相容类，最大相容类，等",
+          url: "./相容.html", // 这里填你的HTML文件名
+          category: "Graph", // 分类：Graph(图论), Logic(逻辑), Set(集合), Algo(算法)
+        },
+        {
+          title: "真值表生成器",
+          desc: "输入逻辑表达式，自动生成对应的真值表。",
+          url: "./truth-table.html",
+          category: "Logic",
+        },
+        {
+          title: "集合运算演示 (Venn图)",
+          desc: "动态展示交集、并集、补集的文氏图变化。",
+          url: "./venn.html",
+          category: "Set",
+        },
+        {
+          title: "二叉树遍历可视化",
+          desc: "前序、中序、后序遍历的动态演示。",
+          url: "./tree-traversal.html",
+          category: "Graph",
+        },
+        {
+          title: "RSA 加密算法原理",
+          desc: "模运算与公钥私钥生成的数学原理演示。",
+          url: "./rsa.html",
+          category: "Algo",
+        },
+      ];
+
+      // ==========================================
+      //  逻辑区域：不需要修改下面的代码
+      // ==========================================
+      const container = document.getElementById("content");
+      const searchInput = document.getElementById("search");
+
+      function renderProjects(filterText = "") {
+        container.innerHTML = "";
+
+        const filtered = projects.filter(
+          (p) =>
+            p.title.toLowerCase().includes(filterText.toLowerCase()) ||
+            p.desc.toLowerCase().includes(filterText.toLowerCase())
+        );
+
+        filtered.forEach((p) => {
+          // 确定标签样式
+          let tagClass = "default";
+          const cat = p.category.toLowerCase();
+          if (cat.includes("graph")) tagClass = "graph";
+          else if (cat.includes("logic")) tagClass = "logic";
+          else if (cat.includes("set")) tagClass = "set";
+          else if (cat.includes("algo")) tagClass = "algo";
+
+          const card = document.createElement("a");
+          card.href = p.url;
+          card.className = "card";
+          card.innerHTML = `
+                    <span class="tag ${tagClass}">${p.category}</span>
+                    <h3>${p.title}</h3>
+                    <p>${p.desc}</p>
+                    <div class="arrow">点击查看演示 <span>&rarr;</span></div>
+                `;
+          container.appendChild(card);
+        });
+
+        if (filtered.length === 0) {
+          container.innerHTML =
+            '<p style="text-align:center; grid-column: 1/-1; color:#999;">未找到相关演示</p>';
+        }
+      }
+
+      // 初始化渲染
+      renderProjects();
+
+      // 搜索监听
+      searchInput.addEventListener("input", (e) => {
+        renderProjects(e.target.value);
+      });
+    </script>
+  </body>
+</html>
