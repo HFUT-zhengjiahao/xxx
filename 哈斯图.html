@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>哈斯图生成演示：整除关系</title>
+    <style>
+        :root {
+            --primary: #3b82f6;
+            --secondary: #64748b;
+            --bg: #f8fafc;
+            --node-bg: #ffffff;
+            --edge-color: #cbd5e1;
+            --edge-active: #3b82f6;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 { margin-bottom: 10px; color: #1e293b; }
+        .desc { max-width: 600px; text-align: center; color: #475569; margin-bottom: 30px; }
+        
+        /* 控件区域 */
+        .controls {
+            background: white;
+            padding: 20px 40px;
+            border-radius: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            width: 80%;
+            max-width: 500px;
+        }
+
+        input[type=range] {
+            width: 100%;
+            cursor: pointer;
+        }
+
+        .steps-labels {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            font-size: 0.9em;
+            color: #64748b;
+            font-weight: bold;
+        }
+
+        .status-text {
+            font-size: 1.1em;
+            color: var(--primary);
+            font-weight: bold;
+            height: 1.5em;
+        }
+
+        /* 绘图区域 */
+        #canvas-container {
+            width: 500px;
+            height: 500px;
+            position: relative;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+        }
+
+        svg {
+            width: 100%;
+            height: 100%;
+            overflow: visible;
+        }
+
+        /* 节点样式 */
+        .node-group {
+            transition: transform 1s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .node-circle {
+            fill: var(--node-bg);
+            stroke: var(--primary);
+            stroke-width: 2px;
+            r: 20;
+        }
+
+        .node-text {
+            text-anchor: middle;
+            dominant-baseline: central;
+            font-weight: bold;
+            fill: #333;
+            font-size: 14px;
+            pointer-events: none;
+        }
+
+        /* 连线样式 */
+        .link {
+            stroke: var(--secondary);
+            stroke-width: 1.5;
+            fill: none;
+            transition: opacity 0.5s, stroke-width 0.5s;
+        }
+
+        .link.hidden {
+            opacity: 0 !important;
+        }
+
+        .link.transitive {
+            stroke-dasharray: 5,5; /* 传递性边用虚线表示，以便区分 */
+        }
+        
+        .arrow-head {
+            fill: var(--secondary);
+            transition: opacity 0.5s;
+        }
+        
+        .arrow-head.hidden {
+            opacity: 0;
+        }
+
+        /* 自环样式 */
+        .self-loop {
+            fill: none;
+            stroke: #f59e0b;
+            stroke-width: 1.5;
+            opacity: 1;
+            transition: opacity 0.5s;
+        }
+        .self-loop.hidden { opacity: 0; }
+
+    </style>
+</head>
+<body>
+
+    <h1>哈斯图可视化：整除关系</h1>
+    <p class="desc">
+        集合 A = {1, 2, 3, 4, 6, 12}，关系 R = "x 整除 y"。<br>
+        拖动滑块，看它如何变成哈斯图。
+    </p>
+
+    <div class="controls">
+        <div class="status-text" id="statusMsg">1. 原始关系图 (乱糟糟)</div>
+        <input type="range" id="stepSlider" min="0" max="3" step="1" value="0">
+        <div class="steps-labels">
+            <span>原始</span>
+            <span>去自环</span>
+            <span>去传递</span>
+            <span>哈斯图</span>
+        </div>
+    </div>
+
+    <div id="canvas-container">
+        <svg id="viz" viewBox="0 0 500 500">
+            <defs>
+                <marker id="arrow" markerWidth="10" markerHeight="10" refX="28" refY="3" orient="auto">
+                    <path d="M0,0 L0,6 L9,3 z" fill="#64748b" />
+                </marker>
+            </defs>
+            <!-- 连线组 -->
+            <g id="linksGroup"></g>
+            <!-- 节点组 -->
+            <g id="nodesGroup"></g>
+        </svg>
+    </div>
+
+<script>
+    // 数据定义：集合 {1, 2, 3, 4, 6, 12}
+    // 关系：整除
+    const nodes = [
+        { id: 1, label: "1" },
+        { id: 2, label: "2" },
+        { id: 3, label: "3" },
+        { id: 4, label: "4" },
+        { id: 6, label: "6" },
+        { id: 12, label: "12" }
+    ];
+
+    // 预计算坐标
+    // 状态0: 圆形布局
+    const cx = 250, cy = 250, r = 180;
+    nodes.forEach((n, i) => {
+        const angle = (i / nodes.length) * 2 * Math.PI - Math.PI/2;
+        n.x_circle = cx + r * Math.cos(angle);
+        n.y_circle = cy + r * Math.sin(angle);
+    });
+
+    // 状态3: 哈斯图层级布局 (手动调优以展示层级)
+    // 层级0: 1
+    // 层级1: 2, 3
+    // 层级2: 4, 6
+    // 层级3: 12
+    const levelY = [450, 350, 250, 150]; // y坐标，越小越靠上
+    
+    const hassePos = {
+        1:  {x: 250, y: levelY[0]},
+        2:  {x: 180, y: levelY[1]},
+        3:  {x: 320, y: levelY[1]},
+        4:  {x: 180, y: levelY[2]},
+        6:  {x: 320, y: levelY[2]},
+        12: {x: 250, y: levelY[3]}
+    };
+
+    nodes.forEach(n => {
+        n.x_hasse = hassePos[n.id].x;
+        n.y_hasse = hassePos[n.id].y;
+        // 初始位置
+        n.x = n.x_circle;
+        n.y = n.y_circle;
+    });
+
+    // 生成所有边
+    const edges = [];
+    nodes.forEach(a => {
+        nodes.forEach(b => {
+            // 如果 a 整除 b
+            if (b.id % a.id === 0) {
+                let type = 'normal';
+                if (a.id === b.id) type = 'reflexive'; // 自反
+                else {
+                    // 检查是否是传递边 (即是否存在中间点 k, a|k 且 k|b)
+                    // 在这个特定集合里检查
+                    let isTransitive = false;
+                    nodes.forEach(k => {
+                        if (k.id !== a.id && k.id !== b.id) {
+                            if (k.id % a.id === 0 && b.id % k.id === 0) {
+                                isTransitive = true;
+                            }
+                        }
+                    });
+                    if (isTransitive) type = 'transitive';
+                    else type = 'direct'; // 哈斯图保留的边
+                }
+
+                edges.push({ source: a.id, target: b.id, type: type });
+            }
+        });
+    });
+
+    // DOM 元素
+    const nodesGroup = document.getElementById('nodesGroup');
+    const linksGroup = document.getElementById('linksGroup');
+    const slider = document.getElementById('stepSlider');
+    const statusMsg = document.getElementById('statusMsg');
+
+    // 渲染节点
+    const nodeEls = {};
+    nodes.forEach(n => {
+        const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+        g.setAttribute("class", "node-group");
+        g.setAttribute("transform", `translate(${n.x}, ${n.y})`);
+        g.id = `node-${n.id}`;
+
+        const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        circle.setAttribute("class", "node-circle");
+        
+        const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        text.setAttribute("class", "node-text");
+        text.textContent = n.label;
+
+        g.appendChild(circle);
+        g.appendChild(text);
+        nodesGroup.appendChild(g);
+        nodeEls[n.id] = g;
+    });
+
+    // 渲染连线
+    const edgeEls = [];
+    edges.forEach(e => {
+        if (e.type === 'reflexive') {
+            // 自环：画一个小圆圈
+            const path = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+            path.setAttribute("class", "self-loop");
+            path.setAttribute("r", 15);
+            // 初始位置在节点上方偏移一点
+            path.setAttribute("cx", 0); 
+            path.setAttribute("cy", -25);
+            
+            // 把自环放到对应的节点组里，这样它会跟着节点动
+            nodeEls[e.source].insertBefore(path, nodeEls[e.source].firstChild);
+            edgeEls.push({ el: path, data: e, isLoop: true, parentNode: e.source });
+        } else {
+            // 直线
+            const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            line.setAttribute("class", "link");
+            if (e.type === 'transitive') line.classList.add('transitive');
+            line.setAttribute("marker-end", "url(#arrow)"); // 初始有箭头
+            linksGroup.appendChild(line);
+            edgeEls.push({ el: line, data: e, isLoop: false });
+        }
+    });
+
+    // 状态更新函数
+    function updateState(step) {
+        step = parseInt(step);
+        
+        // 1. 更新文案
+        const msgs = [
+            "1. 原始关系图：所有关系都画出来，乱成一团。",
+            "2. 简化第一步：去掉自环（默认大家都指向自己）。",
+            "3. 简化第二步：去掉传递边（比如1->2->4，那1->4就别画了）。",
+            "4. 最终形态：分层排列，去掉箭头，下级指向上级。"
+        ];
+        statusMsg.innerText = msgs[step];
+
+        // 2. 节点位置插值
+        const isHasse = (step === 3);
+        nodes.forEach(n => {
+            const targetX = isHasse ? n.x_hasse : n.x_circle;
+            const targetY = isHasse ? n.y_hasse : n.y_circle;
+            const el = nodeEls[n.id];
+            el.style.transform = `translate(${targetX}px, ${targetY}px)`;
+            
+            // 更新内存中的位置供连线使用
+            n.currentX = targetX;
+            n.currentY = targetY;
+        });
+
+        // 3. 连线显隐和位置更新
+        // 在移动动画进行时，我们需要不断更新连线位置，这里简单起见，使用 requestAnimationFrame 或者 CSS transition
+        // 由于 SVG line x1/y1 不支持 CSS transform，我们需要手动更新
+        
+        // 我们利用 CSS transition 只能处理位置，这里手动每帧更新连线
+        // 为了简化，我们只在点击时触发一次位置计算，依靠节点 CSS transform 移动
+        // 但 SVG line 必须实时重绘。
+        
+        // 逻辑控制显隐
+        edgeEls.forEach(item => {
+            const { el, data, isLoop } = item;
+            
+            // Step 1: 去自环
+            if (isLoop) {
+                if (step >= 1) el.classList.add('hidden');
+                else el.classList.remove('hidden');
+                return;
+            }
+
+            // Step 2: 去传递边
+            if (data.type === 'transitive') {
+                if (step >= 2) el.classList.add('hidden');
+                else el.classList.remove('hidden');
+            }
+
+            // Step 3: 去箭头
+            if (step === 3) {
+                el.removeAttribute("marker-end");
+            } else {
+                el.setAttribute("marker-end", "url(#arrow)");
+            }
+        });
+        
+        // 启动动画循环更新连线位置
+        if (!window.animationRunning) {
+            animateLinks();
+        }
+    }
+
+    // 动画循环：保持连线连接节点中心
+    function animateLinks() {
+        window.animationRunning = true;
+        
+        // 获取当前节点 DOM 的实际位置 (transform 后的)
+        // 这种方式有点耗性能，但在小数据量下没问题
+        nodes.forEach(n => {
+            const el = nodeEls[n.id];
+            // 获取 transform 值
+            const style = window.getComputedStyle(el);
+            const matrix = new WebKitCSSMatrix(style.transform);
+            n.currentX = matrix.m41; // Translate X
+            n.currentY = matrix.m42; // Translate Y
+            
+            // 如果是初始状态(matrix 可能是 identity)，回退到逻辑坐标
+            if (n.currentX === 0 && n.currentY === 0 && !el.style.transform.includes('matrix')) {
+               // 处理初始渲染未完成的情况
+            }
+        });
+
+        edgeEls.forEach(item => {
+            if (item.isLoop) return; // 自环跟随节点 group 动，不需要重绘
+            
+            const sourceNode = nodes.find(n => n.id === item.data.source);
+            const targetNode = nodes.find(n => n.id === item.data.target);
+            
+            // 为了让箭头不被圆遮住，我们需要计算边缘位置
+            // 简单起见，画到圆心，节点在连线上层覆盖
+            item.el.setAttribute('x1', sourceNode.currentX);
+            item.el.setAttribute('y1', sourceNode.currentY);
+            item.el.setAttribute('x2', targetNode.currentX);
+            item.el.setAttribute('y2', targetNode.currentY);
+        });
+
+        requestAnimationFrame(animateLinks);
+    }
+
+    // 初始化
+    slider.addEventListener('input', (e) => updateState(e.target.value));
+    
+    // 强制先设定初始位置
+    nodes.forEach(n => {
+        nodeEls[n.id].style.transform = `translate(${n.x_circle}px, ${n.y_circle}px)`;
+        n.currentX = n.x_circle;
+        n.currentY = n.y_circle;
+    });
+    
+    // 启动
+    updateState(0); 
+
+</script>
+</body>
+</html>
