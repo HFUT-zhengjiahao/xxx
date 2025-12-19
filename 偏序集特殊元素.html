@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>可视化：偏序集的特殊元素</title>
+    <style>
+        :root {
+            --bg: #f8fafc;
+            --primary: #3b82f6;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --text: #1e293b;
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            margin: 0;
+        }
+
+        h1 { margin-bottom: 5px; }
+        p.subtitle { color: #64748b; margin-bottom: 20px; text-align: center; max-width: 600px; }
+
+        .container {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+            width: 100%;
+            max-width: 1000px;
+        }
+
+        /* 左侧：控制面板 */
+        .controls {
+            flex: 1;
+            min-width: 300px;
+            background: white;
+            padding: 20px;
+            border-radius: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+
+        .btn-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .section-label {
+            font-size: 0.85em;
+            color: #94a3b8;
+            font-weight: bold;
+            grid-column: span 2;
+            margin-top: 10px;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 5px;
+        }
+
+        button {
+            padding: 10px;
+            border: 2px solid #e2e8f0;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+            color: #64748b;
+        }
+
+        button:hover { border-color: var(--primary); color: var(--primary); }
+        button.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+        .explanation-box {
+            background: #f1f5f9;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid var(--primary);
+            min-height: 100px;
+        }
+
+        .exp-title { font-weight: bold; font-size: 1.1em; margin-bottom: 8px; color: var(--text); }
+        .exp-text { font-size: 0.95em; line-height: 1.6; color: #475569; }
+
+        /* 右侧：绘图区 */
+        .canvas-area {
+            position: relative;
+            width: 400px;
+            height: 500px;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+        }
+
+        svg { width: 100%; height: 100%; overflow: visible; }
+
+        /* 图形样式 */
+        .node { cursor: default; transition: all 0.4s ease; }
+        .node circle { 
+            fill: white; 
+            stroke: #94a3b8; 
+            stroke-width: 2px; 
+            transition: all 0.4s;
+        }
+        .node text { 
+            font-weight: bold; fill: #475569; text-anchor: middle; dominant-baseline: central; pointer-events: none;
+        }
+
+        .link { stroke: #cbd5e1; stroke-width: 2; fill: none; }
+
+        /* 状态样式 */
+        .node.highlight circle { fill: var(--warning); stroke: var(--warning); r: 25; }
+        .node.highlight text { fill: white; }
+        
+        /* 选中子集 B 的样式 */
+        .node.subset circle { stroke: var(--primary); stroke-width: 4px; stroke-dasharray: 4 2; }
+        .node.subset text { fill: var(--primary); }
+
+        /* 特殊高亮 */
+        .node.target circle { fill: var(--danger); stroke: var(--danger); r: 28; }
+        .node.target text { fill: white; }
+
+        /* 标签 */
+        .badge {
+            font-size: 10px;
+            fill: white;
+            font-weight: bold;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .node.target .badge { opacity: 1; }
+
+    </style>
+</head>
+<body>
+
+    <h1>偏序集特殊元素可视化</h1>
+    <p class="subtitle">
+        想象这是一个<b>“公司组织架构”</b> (箭头向上表示汇报关系)。<br>
+        当前考察的<b>“项目小组 B”</b> 是蓝色虚线框住的人：{ 4, 5 }
+    </p>
+
+    <div class="container">
+        <!-- 画布 -->
+        <div class="canvas-area">
+            <svg id="svg" viewBox="0 0 400 500">
+                <defs>
+                    <marker id="arrow" markerWidth="10" markerHeight="10" refX="22" refY="3" orient="auto">
+                        <path d="M0,0 L0,6 L9,3 z" fill="#cbd5e1" />
+                    </marker>
+                </defs>
+                <!-- 连线组 -->
+                <g id="links"></g>
+                <!-- 节点组 -->
+                <g id="nodes"></g>
+            </svg>
+        </div>
+
+        <!-- 控制区 -->
+        <div class="controls">
+            <div class="btn-group">
+                <div class="section-label">整个公司的性质 (全集 A)</div>
+                <button onclick="showProp('maximal')">极大元</button>
+                <button onclick="showProp('greatest')">最大元</button>
+                <button onclick="showProp('minimal')">极小元</button>
+                <button onclick="showProp('least')">最小元</button>
+
+                <div class="section-label">项目组 B {4, 5} 的性质</div>
+                <button onclick="showProp('upper_bound')">上界</button>
+                <button onclick="showProp('supremum')">上确界</button>
+                <button onclick="showProp('lower_bound')">下界</button>
+                <button onclick="showProp('infimum')">下确界</button>
+            </div>
+
+            <div class="explanation-box">
+                <div class="exp-title" id="expTitle">请点击上方按钮</div>
+                <div class="exp-text" id="expText">
+                    图中 <b>蓝色虚线圈</b> 的节点 {4, 5} 是我们选定的子集 B。<br>
+                    我们将考察相对于这个子集的上界、下界等概念。
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+    // 定义哈斯图结构
+    // 这是一个精心设计的结构，用于区分极大/最大，上界/上确界
+    /*
+          1(CEO-A)    2(CEO-B)    <-- 极大元 (两个)
+             \         /   
+              \       /
+               3(总监)             <-- 上确界
+              /      \
+           4(组长A)  5(组长B)      <-- 子集 B
+           /    \    /
+        6(员工A)  7(员工B)         <-- 下确界? No
+    */
+
+    const nodesData = [
+        { id: 1, label: "1", x: 120, y: 50, isSubset: false },
+        { id: 2, label: "2", x: 280, y: 50, isSubset: false },
+        { id: 3, label: "3", x: 200, y: 150, isSubset: false },
+        { id: 4, label: "4", x: 120, y: 250, isSubset: true },  // B
+        { id: 5, label: "5", x: 280, y: 250, isSubset: true },  // B
+        { id: 6, label: "6", x: 120, y: 400, isSubset: false },
+        { id: 7, label: "7", x: 280, y: 400, isSubset: false }
+    ];
+
+    const edgesData = [
+        { s: 3, t: 1 }, { s: 3, t: 2 }, // 3 汇报给 1, 2
+        { s: 4, t: 3 }, { s: 5, t: 3 }, // 4, 5 汇报给 3
+        { s: 6, t: 4 }, { s: 6, t: 5 }, // 6 汇报给 4, 5
+        { s: 7, t: 4 }                  // 7 汇报给 4 (注意：7不汇报给5，制造不对称)
+    ];
+
+    // 初始化渲染
+    const svgNodes = document.getElementById('nodes');
+    const svgLinks = document.getElementById('links');
+    const expTitle = document.getElementById('expTitle');
+    const expText = document.getElementById('expText');
+    const btns = document.querySelectorAll('button');
+
+    // 绘制连线
+    edgesData.forEach(e => {
+        const sNode = nodesData.find(n => n.id === e.s);
+        const tNode = nodesData.find(n => n.id === e.t);
+        
+        const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        line.setAttribute("x1", sNode.x);
+        line.setAttribute("y1", sNode.y);
+        line.setAttribute("x2", tNode.x);
+        line.setAttribute("y2", tNode.y);
+        line.setAttribute("class", "link");
+        svgLinks.appendChild(line);
+    });
+
+    // 绘制节点
+    nodesData.forEach(n => {
+        const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+        g.setAttribute("class", `node ${n.isSubset ? 'subset' : ''}`);
+        g.setAttribute("transform", `translate(${n.x}, ${n.y})`);
+        g.id = `node-${n.id}`;
+
+        const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        circle.setAttribute("r", 20);
+
+        const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        text.textContent = n.label;
+        
+        // 辅助标签（用于显示当前是什么元）
+        const badge = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        badge.setAttribute("class", "badge");
+        badge.setAttribute("y", -28);
+        badge.setAttribute("text-anchor", "middle");
+        badge.id = `badge-${n.id}`;
+
+        g.appendChild(circle);
+        g.appendChild(text);
+        g.appendChild(badge);
+        svgNodes.appendChild(g);
+    });
+
+    // 逻辑处理
+    const logic = {
+        'maximal': {
+            nodes: [1, 2],
+            title: "极大元 (Maximal)",
+            desc: "<b>定义：</b>没有比它更大的元素。<br><b>比喻：</b>公司里的“土皇帝”或“部门一把手”。头顶上没人管他了。<br><b>观察：</b>1和2都是极大元。虽然他俩互不统属，但都没人管。",
+            isTarget: true
+        },
+        'greatest': {
+            nodes: [],
+            title: "最大元 (Greatest)",
+            desc: "<b>定义：</b>比所有其他元素都大（唯一）。<br><b>比喻：</b>全公司的“终极大BOSS”。所有人（包括极大元）都得听他的。<br><b>观察：</b>这里<b>不存在</b>最大元。因为1和2谁也不服谁，没人能统领全局。",
+            isTarget: true
+        },
+        'minimal': {
+            nodes: [6, 7],
+            title: "极小元 (Minimal)",
+            desc: "<b>定义：</b>没有比它更小的元素。<br><b>比喻：</b>刚入职的“实习生”。手底下没人。<br><b>观察：</b>6和7都是极小元。",
+            isTarget: true
+        },
+        'least': {
+            nodes: [],
+            title: "最小元 (Least)",
+            desc: "<b>定义：</b>比所有其他元素都小（唯一）。<br><b>比喻：</b>公司的“基石”。所有人的工作最终都依赖他。<br><b>观察：</b>这里<b>不存在</b>最小元。6和7互不从属。",
+            isTarget: true
+        },
+        // 针对子集 {4, 5}
+        'upper_bound': {
+            nodes: [3, 1, 2],
+            title: "上界 (Upper Bound)",
+            desc: "<b>定义：</b>必须比子集里<b>所有人</b>都大。<br><b>比喻：</b>项目组 {4,5} 的“共同领导”。<br><b>观察：</b>3是它俩的直属领导，1和2是更高层的领导。所以 {1, 2, 3} 都是上界。",
+            isTarget: false
+        },
+        'supremum': {
+            nodes: [3],
+            title: "上确界 / 最小上界 (Supremum / LUB)",
+            desc: "<b>定义：</b>上界里最小的那个。<br><b>比喻：</b>“直属领导”。虽然1、2、3都是领导，但3是离得最近、管得最直接的那个。<br><b>观察：</b>在 {1, 2, 3} 这些上界里，3 是最小的（被1和2管着）。",
+            isTarget: true
+        },
+        'lower_bound': {
+            nodes: [6],
+            title: "下界 (Lower Bound)",
+            desc: "<b>定义：</b>必须比子集里<b>所有人</b>都小。<br><b>比喻：</b>项目组 {4,5} 的“共同下属”。<br><b>观察：</b>只有 6 同时向 4 和 5 汇报。注意 7 不是下界，因为 7 只向 4 汇报，不归 5 管。",
+            isTarget: false
+        },
+        'infimum': {
+            nodes: [6],
+            title: "下确界 / 最大下界 (Infimum / GLB)",
+            desc: "<b>定义：</b>下界里最大的那个。<br><b>观察：</b>因为下界只有一个 6，那它自然就是下确界。",
+            isTarget: true
+        }
+    };
+
+    function showProp(type) {
+        // 重置样式
+        document.querySelectorAll('.node').forEach(el => {
+            el.classList.remove('highlight', 'target');
+            el.querySelector('.badge').textContent = "";
+        });
+        btns.forEach(b => b.classList.remove('active'));
+
+        // 激活当前
+        event.target.classList.add('active');
+        const data = logic[type];
+
+        // 高亮节点
+        data.nodes.forEach(id => {
+            const el = document.getElementById(`node-${id}`);
+            el.classList.add(data.isTarget ? 'target' : 'highlight');
+            // 设置标签
+            el.querySelector('.badge').textContent = data.isTarget ? "Target" : "√";
+        });
+
+        // 更新文字
+        expTitle.textContent = data.title;
+        expTitle.style.color = data.isTarget ? "var(--danger)" : "var(--warning)";
+        expText.innerHTML = data.desc;
+    }
+
+</script>
+</body>
+</html>
