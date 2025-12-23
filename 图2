@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图论概念可视化：特殊结构与定义</title>
+    <style>
+        :root {
+            /* 提取自原图的配色 */
+            --theme-blue: #1a237e;     /* 深蓝背景 */
+            --theme-yellow: #fdd835;   /* 高亮黄字 */
+            --card-bg: #ffffff;
+            --text-main: #333;
+            --text-sub: #666;
+            --border-radius: 12px;
+            --shadow: 0 4px 15px rgba(0,0,0,0.08);
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f5f7fa;
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* 顶部导航/标题栏 */
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            border-bottom: 3px solid var(--theme-blue);
+            padding-bottom: 10px;
+            width: 100%;
+            max-width: 1000px;
+        }
+
+        h1 {
+            color: var(--theme-blue);
+            margin: 0;
+            font-size: 2rem;
+        }
+
+        .subtitle {
+            color: var(--text-sub);
+            margin-top: 5px;
+            font-size: 1rem;
+        }
+
+        .page-indicator {
+            display: inline-block;
+            background: var(--theme-blue);
+            color: #fff;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            margin-bottom: 10px;
+        }
+
+        /* 网格布局 */
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            width: 100%;
+            max-width: 1000px;
+        }
+
+        /* 卡片样式 */
+        .card {
+            background: var(--card-bg);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            padding: 25px;
+            transition: transform 0.3s, box-shadow 0.3s;
+            border-top: 5px solid var(--theme-blue);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+
+        /* 卡片标题 */
+        h2 {
+            margin-top: 0;
+            color: var(--theme-blue);
+            font-size: 1.25rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        /* 高亮标记 */
+        .highlight-box {
+            background-color: #fff9c4; /* 浅黄背景 */
+            color: #f57f17;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            font-weight: bold;
+        }
+
+        p {
+            line-height: 1.6;
+            color: #444;
+            margin-bottom: 20px;
+        }
+
+        /* 关键词高亮 (模仿PPT) */
+        .keyword {
+            color: #d81b60; /* 洋红，用于强调 */
+            font-weight: bold;
+            background: #fffde7;
+            padding: 0 4px;
+        }
+
+        /* SVG 绘图区 */
+        .diagram-container {
+            background: #fcfcfc;
+            border: 1px dashed #ddd;
+            border-radius: 8px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 15px;
+            height: 140px;
+        }
+
+        /* SVG 元素样式 */
+        svg { overflow: visible; }
+        
+        .node {
+            fill: #e8eaf6;
+            stroke: var(--theme-blue);
+            stroke-width: 2px;
+        }
+        
+        .edge {
+            stroke: var(--theme-blue);
+            stroke-width: 2px;
+            fill: none;
+        }
+
+        text {
+            font-family: sans-serif;
+            font-size: 14px;
+            fill: #555;
+            text-anchor: middle;
+            dominant-baseline: middle;
+        }
+
+        /* 特殊卡片：(n, m) 图 */
+        .card-wide {
+            grid-column: 1 / -1; /* 跨满整行 */
+            background: linear-gradient(to right, #ffffff, #f3f6ff);
+        }
+
+        /* 响应式 */
+        @media (max-width: 600px) {
+            .grid-container { grid-template-columns: 1fr; }
+            h1 { font-size: 1.5rem; }
+        }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <span class="page-indicator">Page 02</span>
+        <h1>图的特殊元素与分类</h1>
+        <p class="subtitle">自环、孤立点、零图、平凡图的可视化</p>
+    </header>
+
+    <div class="grid-container">
+
+        <!-- 卡片 1: 自环 -->
+        <div class="card">
+            <h2>自环 / 自回路 <span class="highlight-box">Self-loop</span></h2>
+            <p>两个端点<span class="keyword">相同</span>的边。</p>
+            <div class="diagram-container">
+                <svg width="150" height="100">
+                    <!-- 环形边 -->
+                    <!-- M(move)到圆上方, C(curve)画贝塞尔曲线绕一圈回到原点 -->
+                    <path d="M 75 50 C 75 10, 130 10, 130 50 C 130 90, 85 80, 82 62" 
+                          class="edge" stroke-dasharray="0" marker-end="url(#arrow)"/>
+                    
+                    <!-- 节点 -->
+                    <circle cx="75" cy="60" r="15" class="node" />
+                    <text x="75" y="60">v</text>
+                    
+                    <!-- 标注 -->
+                    <text x="135" y="50" fill="#d81b60" font-size="12">e (自环)</text>
+                </svg>
+            </div>
+        </div>
+
+        <!-- 卡片 2: 孤立结点 -->
+        <div class="card">
+            <h2>孤立结点 <span class="highlight-box">Isolated Vertex</span></h2>
+            <p>不与任何结点<span class="keyword">相邻接</span>的结点 (度数为0)。</p>
+            <div class="diagram-container">
+                <svg width="150" height="100">
+                    <!-- 虚线圆圈表示"隔离" -->
+                    <circle cx="75" cy="50" r="35" fill="none" stroke="#ccc" stroke-dasharray="4 4" />
+                    
+                    <!-- 节点 -->
+                    <circle cx="75" cy="50" r="15" class="node" fill="#fff" />
+                    <text x="75" y="50">u</text>
+                    
+                    <!-- 禁止符号 -->
+                    <line x1="110" y1="50" x2="140" y2="50" stroke="#ccc" stroke-width="2" />
+                    <line x1="10" y1="50" x2="40" y2="50" stroke="#ccc" stroke-width="2" />
+                    <text x="75" y="95" font-size="11" fill="#999">无边相连</text>
+                </svg>
+            </div>
+        </div>
+
+        <!-- 卡片 3: 零图 -->
+        <div class="card">
+            <h2>零图 <span class="highlight-box">Null Graph</span></h2>
+            <p>由<span class="keyword">孤立结点</span>组成而<span class="keyword">没有边</span>的图。</p>
+            <div class="diagram-container">
+                <svg width="200" height="100">
+                    <circle cx="40" cy="30" r="12" class="node" />
+                    <circle cx="100" cy="80" r="12" class="node" />
+                    <circle cx="160" cy="30" r="12" class="node" />
+                    <circle cx="160" cy="80" r="12" class="node" />
+                    
+                    <text x="100" y="50" font-size="20" fill="#eee" font-weight="bold">E = Ø</text>
+                </svg>
+            </div>
+        </div>
+
+        <!-- 卡片 4: 平凡图 -->
+        <div class="card">
+            <h2>平凡图 <span class="highlight-box">Trivial Graph</span></h2>
+            <p>仅含<span class="keyword">一个</span>孤立结点而没有边的图。</p>
+            <div class="diagram-container">
+                <svg width="150" height="100">
+                    <rect x="50" y="25" width="50" height="50" fill="#f0f0f0" rx="8" />
+                    <circle cx="75" cy="50" r="15" class="node" style="fill:#fff9c4; stroke:#fbc02d;" />
+                    <text x="75" y="50">v</text>
+                    
+                    <text x="75" y="90" font-size="12" fill="#555">n=1, m=0</text>
+                </svg>
+            </div>
+        </div>
+
+        <!-- 卡片 5: (n, m) 图 -->
+        <div class="card card-wide">
+            <h2>(n, m) 图 <span class="highlight-box">(n, m) Graph</span></h2>
+            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;">
+                <div style="flex: 1; min-width: 200px;">
+                    <p>含有 <span class="keyword">n 个结点</span> 和 <span class="keyword">m 条边</span> 的图。</p>
+                    <ul style="color: #666; font-size: 0.9rem;">
+                        <li><strong>n (Order):</strong> 阶数，顶点数 |V|</li>
+                        <li><strong>m (Size):</strong> 边数 |E|</li>
+                    </ul>
+                </div>
+                
+                <div class="diagram-container" style="flex: 1; border: none; background: transparent; height: auto;">
+                    <svg width="250" height="120">
+                        <!-- 示例图：三角形加一根线 -->
+                        <line x1="50" y1="80" x2="125" y2="20" class="edge" />
+                        <line x1="125" y1="20" x2="200" y2="80" class="edge" />
+                        <line x1="50" y1="80" x2="200" y2="80" class="edge" />
+                        <line x1="200" y1="80" x2="240" y2="50" class="edge" />
+
+                        <circle cx="50" cy="80" r="10" class="node" />
+                        <circle cx="125" cy="20" r="10" class="node" />
+                        <circle cx="200" cy="80" r="10" class="node" />
+                        <circle cx="240" cy="50" r="10" class="node" />
+
+                        <!-- 计数标注 -->
+                        <rect x="0" y="0" width="60" height="25" rx="4" fill="#e8eaf6" />
+                        <text x="30" y="13" font-size="12" fill="#1a237e">n = 4</text>
+                        
+                        <rect x="0" y="30" width="60" height="25" rx="4" fill="#e8eaf6" />
+                        <text x="30" y="43" font-size="12" fill="#1a237e">m = 4</text>
+                    </svg>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>
