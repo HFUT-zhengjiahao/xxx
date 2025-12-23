@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图的可达性与距离 (修复公式版)</title>
+    
+    <!-- 引入 MathJax 用于渲染数学公式 -->
+    <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']], // 允许单美元符号作为行内公式
+        displayMath: [['$$', '$$'], ['\\[', '\\]']] // 允许双美元符号作为块级公式
+      }
+    };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <style>
+        :root {
+            --primary: #1565c0;      /* PPT 蓝 */
+            --accent: #d81b60;       /* 重点 红/紫 */
+            --bg: #f4f6f8;
+            --card-bg: #ffffff;
+            --text: #333;
+            --light-blue: #e3f2fd;
+            --success: #2e7d32;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            max-width: 900px;
+            border-bottom: 3px solid var(--primary);
+            padding-bottom: 10px;
+            width: 100%;
+        }
+
+        h1 { margin: 0; color: var(--primary); }
+        .subtitle { color: #546e7a; font-size: 0.9rem; margin-top: 5px; }
+
+        .container {
+            width: 100%;
+            max-width: 1100px;
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+        }
+
+        /* ---------------- 通用卡片 ---------------- */
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.06);
+            padding: 25px;
+            border-left: 5px solid var(--primary);
+            position: relative;
+        }
+
+        .card-header {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: var(--primary);
+            margin-bottom: 15px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .tag {
+            font-size: 0.8rem;
+            background: var(--light-blue);
+            color: var(--primary);
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-weight: normal;
+        }
+
+        /* ---------------- 第一部分：定义与性质 ---------------- */
+        .definition-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .def-box {
+            background: #fafafa;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            padding: 15px;
+        }
+
+        .property-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .property-list li {
+            margin-bottom: 10px;
+            padding-left: 20px;
+            position: relative;
+        }
+        .property-list li::before {
+            content: "✔";
+            position: absolute;
+            left: 0;
+            color: var(--success);
+        }
+
+        /* ---------------- 第二部分：定理与证明可视化 ---------------- */
+        .theorem-visual {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 30px;
+            flex-wrap: wrap;
+        }
+
+        svg { overflow: visible; width: 300px; height: 180px; background: #fff; border: 1px solid #eee; border-radius: 8px; }
+        .node { fill: white; stroke: #333; stroke-width: 2px; r: 12; }
+        .node-text { font-size: 12px; font-weight: bold; text-anchor: middle; dominant-baseline: middle; pointer-events: none; }
+        .edge { stroke: #999; stroke-width: 2px; fill: none; marker-end: url(#arrow); }
+        
+        .path-highlight { stroke: var(--accent); stroke-width: 3px; stroke-dasharray: 5; animation: flow 1s linear infinite; marker-end: url(#arrow-red); }
+        .loop-highlight { stroke: #ff9800; stroke-width: 3px; fill: none; marker-end: url(#arrow-orange); }
+
+        @keyframes flow { to { stroke-dashoffset: -10; } }
+
+        /* 证明逻辑链 */
+        .logic-chain {
+            background: #fff3e0;
+            border-left: 4px solid #ff9800;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 15px;
+        }
+
+        /* ---------------- 第三部分：量化计算 ---------------- */
+        .matrix-layout {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            justify-content: center;
+            background: #f1f8e9;
+            padding: 15px;
+            border-radius: 8px;
+        }
+        
+        .matrix-box {
+            font-size: 1.1rem;
+            text-align: center;
+        }
+        
+        .sum-symbol { font-size: 2rem; color: #558b2f; margin: 0 10px; }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>可达性与距离 (Reachability & Distance)</h1>
+        <div class="subtitle">定义 · 性质 · 定理证明 · 矩阵计算</div>
+    </header>
+
+    <div class="container">
+
+        <!-- 1. 定义与性质 -->
+        <div class="card">
+            <div class="card-header">
+                1. 基础定义与距离性质
+                <span class="tag">自反性 & 三角不等式</span>
+            </div>
+            <div class="definition-grid">
+                <!-- 左：定义 -->
+                <div class="def-box">
+                    <strong>可达性 (Reachable):</strong><br>
+                    若存在路径 $v_i \to \dots \to v_j$ (长度 $\ge 0$)，则称 $v_i$ 可达 $v_j$。<br>
+                    <small style="color:#666;">*规定：节点到自身总是可达的 (距离=0)。</small>
+                    <hr style="margin:10px 0; border:0; border-top:1px dashed #ccc;">
+                    <strong>距离 (Distance) $d(v_i, v_j)$:</strong><br>
+                    从 $v_i$ 到 $v_j$ 的<strong>最短通路 (Geodesic)</strong> 的长度。<br>
+                    若不可达，则 $d(v_i, v_j) = \infty$。
+                </div>
+
+                <!-- 右：性质 -->
+                <div class="def-box">
+                    <strong>距离满足的性质：</strong>
+                    <ul class="property-list">
+                        <li>$d(v_i, v_j) \ge 0$ (非负性)</li>
+                        <li>$d(v_i, v_i) = 0$ (自反性)</li>
+                        <li>$d(v_i, v_k) + d(v_k, v_j) \ge d(v_i, v_j)$<br>(三角不等式：两边之和大于等于第三边)</li>
+                    </ul>
+                    <div style="margin-top:10px; font-size:0.9rem; color:#1565c0; background:#e3f2fd; padding:5px;">
+                        <strong>注：</strong> 对于无向图，还满足对称性 $d(u,v) = d(v,u)$。<br>
+                        但有向图通常<strong>不满足</strong>对称性。
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. 核心定理：通路的长度限制 -->
+        <div class="card" style="border-left-color: var(--accent);">
+            <div class="card-header" style="color:var(--accent);">
+                2. 核心定理：通路的长度限制 (鸽巢原理)
+                <span class="tag" style="color:var(--accent); background:#fce4ec;">重要考点</span>
+            </div>
+            
+            <div class="theorem-visual">
+                <!-- 左侧：文字逻辑 -->
+                <div style="flex:1; min-width:300px;">
+                    <p><strong>定理：</strong> 在 $n$ 个节点的图中：</p>
+                    <ul>
+                        <li>若 $u \to v$ 可达，必存在长度 $\le n-1$ 的<strong>基本通路</strong>。</li>
+                        <li>若存在经过 $v$ 的回路，必存在长度 $\le n$ 的<strong>基本回路</strong> (圈)。</li>
+                    </ul>
+
+                    <div class="logic-chain">
+                        <strong>证明逻辑 (反证法)：</strong><br>
+                        1. 假设最短通路 $L$ 的长度 $k \ge n$。<br>
+                        2. 则路径上包含 $k+1$ 个节点 (因为边数=k)。<br>
+                        3. 但图中总共只有 $n$ 个节点。<br>
+                        4. <strong>鸽巢原理：</strong> 必有至少两个节点是相同的 ($v_i = v_j$)。<br>
+                        5. 这意味着路径中包含了一个<strong>回路</strong>。<br>
+                        6. 删掉这个回路，可以得到一条<strong>更短</strong>的通路，与“最短”矛盾！
+                    </div>
+                </div>
+
+                <!-- 右侧：图解回路删除法 -->
+                <div>
+                    <svg width="320" height="200">
+                        <defs>
+                            <marker id="arrow" markerWidth="6" markerHeight="6" refX="15" refY="3" orient="auto"><path d="M0,0 L0,6 L6,3 z" fill="#999" /></marker>
+                            <marker id="arrow-red" markerWidth="6" markerHeight="6" refX="15" refY="3" orient="auto"><path d="M0,0 L0,6 L6,3 z" fill="#d81b60" /></marker>
+                            <marker id="arrow-orange" markerWidth="6" markerHeight="6" refX="15" refY="3" orient="auto"><path d="M0,0 L0,6 L6,3 z" fill="#ff9800" /></marker>
+                        </defs>
+
+                        <!-- Path u -> ... -> vi -> ... -> vj -> ... -> v -->
+                        <!-- Nodes -->
+                        <circle cx="30" cy="100" class="node" /><text x="30" y="100" class="node-text">u</text>
+                        <circle cx="90" cy="100" class="node" style="stroke:#d81b60"/><text x="90" y="100" class="node-text">vi</text>
+                        
+                        <!-- The Loop Part -->
+                        <path d="M90,100 Q150,20 210,100" class="edge loop-highlight" />
+                        <path d="M210,100 Q150,180 90,100" class="edge loop-highlight" />
+                        
+                        <circle cx="210" cy="100" class="node" style="stroke:#d81b60"/><text x="210" y="100" class="node-text">vj</text>
+                        <circle cx="270" cy="100" class="node" /><text x="270" y="100" class="node-text">v</text>
+
+                        <!-- Connections -->
+                        <line x1="30" y1="100" x2="90" y2="100" class="edge" />
+                        <line x1="210" y1="100" x2="270" y2="100" class="edge" />
+
+                        <!-- Shortcut Annotation -->
+                        <path d="M90,100 L210,100" class="edge path-highlight" style="opacity:0.3; stroke-width:5px;" />
+                        <text x="150" y="115" fill="#d81b60" font-size="12" font-weight="bold" text-anchor="middle">vi = vj</text>
+                        <text x="150" y="50" fill="#ff9800" font-size="12" text-anchor="middle">回路 (冗余部分)</text>
+                    </svg>
+                    <div style="text-align:center; font-size:0.9rem; color:#666; margin-top:5px;">
+                        删除橙色回路 $\to$ 得到更短路径
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. 可达性的量化计算 -->
+        <div class="card">
+            <div class="card-header">
+                3. 可达性与距离的量化计算
+                <span class="tag">矩阵运算</span>
+            </div>
+            
+            <div class="definition-grid">
+                <!-- 传递闭包概念 -->
+                <div class="def-box">
+                    <strong>可达性矩阵 (传递闭包)：</strong><br>
+                    要判断任意两点是否可达，只需计算：
+                    <div style="margin:10px 0; text-align:center;">
+                        $$ B_n = A + A^2 + A^3 + \dots + A^n $$
+                    </div>
+                    <ul>
+                        <li>$A^k$ 中的非零元素表示存在长度为 $k$ 的通路。</li>
+                        <li>只需加到 $n$ 次幂即可 (因为基本通路长度 $\le n-1$, 回路 $\le n$)。</li>
+                        <li>若 $(B_n)_{ij} > 0$，则 $v_i$ 可达 $v_j$。</li>
+                    </ul>
+                </div>
+
+                <!-- 距离计算 -->
+                <div class="def-box">
+                    <strong>最短距离 $d(v_i, v_j)$ 的计算：</strong><br>
+                    <br>
+                    $$ d(v_i, v_j) = \min \{ m \mid a^{(m)}_{ij} \ne 0 \} $$
+                    <br>
+                    <strong>解释：</strong> 
+                    查看 $A, A^2, A^3 \dots$，第一个在位置 $(i,j)$ 出现非零值的幂次 $m$，即为最短距离。
+                    <br>
+                    <span style="color:#d81b60; font-size:0.9rem;">若一直为0，则距离为 $\infty$。</span>
+                </div>
+            </div>
+
+            <!-- 矩阵和演示 -->
+            <div class="matrix-layout" style="margin-top:20px;">
+                <div style="font-weight:bold; color:var(--primary);">总可达性</div>
+                <div>=</div>
+                <div class="matrix-box">$A$<br><small>(1步)</small></div>
+                <div class="sum-symbol">+</div>
+                <div class="matrix-box">$A^2$<br><small>(2步)</small></div>
+                <div class="sum-symbol">+</div>
+                <div class="matrix-box">...<br><small></small></div>
+                <div class="sum-symbol">+</div>
+                <div class="matrix-box">$A^n$<br><small>(n步)</small></div>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>
