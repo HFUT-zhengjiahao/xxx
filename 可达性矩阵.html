@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>可达性矩阵与传递闭包</title>
+    
+    <!-- 引入 MathJax 渲染公式 -->
+    <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']]
+      }
+    };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <style>
+        :root {
+            --primary: #1565c0;      /* PPT 蓝 */
+            --accent: #d81b60;       /* 重点 红/紫 */
+            --bg: #f4f6f8;
+            --card-bg: #ffffff;
+            --text: #333;
+            --light-blue: #e3f2fd;
+            --success: #2e7d32;
+            --step-color: #ff9800;   /* 步骤指示色 */
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            max-width: 900px;
+            border-bottom: 3px solid var(--primary);
+            padding-bottom: 10px;
+            width: 100%;
+        }
+
+        h1 { margin: 0; color: var(--primary); }
+        .subtitle { color: #546e7a; font-size: 0.9rem; margin-top: 5px; }
+
+        .container {
+            width: 100%;
+            max-width: 1100px;
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+        }
+
+        /* ---------------- 通用卡片 ---------------- */
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.06);
+            padding: 25px;
+            border-left: 5px solid var(--primary);
+            position: relative;
+        }
+
+        .card-header {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: var(--primary);
+            margin-bottom: 15px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .tag {
+            font-size: 0.8rem;
+            background: var(--light-blue);
+            color: var(--primary);
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-weight: normal;
+        }
+
+        /* ---------------- 第一部分：定义与性质 ---------------- */
+        .definition-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .def-box {
+            background: #fafafa;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            padding: 15px;
+        }
+
+        .matrix-sample {
+            font-family: 'Consolas', monospace;
+            display: inline-block;
+            background: #fff;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 1.1rem;
+        }
+
+        .note-box {
+            margin-top: 10px;
+            font-size: 0.9rem;
+            color: #d81b60;
+            background: #fce4ec;
+            padding: 8px;
+            border-radius: 4px;
+        }
+
+        /* ---------------- 第二部分：传递闭包逻辑 ---------------- */
+        .logic-flow {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            background: #f1f8e9;
+            padding: 15px;
+            border-radius: 8px;
+            flex-wrap: wrap;
+        }
+        
+        .step-circle {
+            width: 40px; height: 40px;
+            background: var(--primary); color: white;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: bold;
+        }
+
+        .logic-text {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #333;
+        }
+
+        /* ---------------- 第三部分：例题深度解析 (Matrix Steps) ---------------- */
+        .example-layout {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 30px;
+            justify-content: center;
+        }
+
+        /* Graph Panel */
+        .graph-panel {
+            flex: 0 0 300px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        svg { overflow: visible; background: #fff; border: 1px solid #eee; border-radius: 8px; }
+        .node { fill: white; stroke: #333; stroke-width: 2px; r: 14; }
+        .node-text { font-size: 12px; font-weight: bold; text-anchor: middle; dominant-baseline: middle; pointer-events: none; }
+        .edge { stroke: #666; stroke-width: 1.5; fill: none; marker-end: url(#arrow); }
+        
+        /* Matrix Panel */
+        .matrix-panel {
+            flex: 1;
+            min-width: 300px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .matrix-row {
+            display: flex;
+            gap: 20px;
+            overflow-x: auto;
+            padding-bottom: 10px;
+        }
+
+        .matrix-card {
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 10px;
+            text-align: center;
+            min-width: 120px;
+            transition: transform 0.2s;
+        }
+        .matrix-card:hover { transform: scale(1.05); box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+
+        .m-title { font-weight: bold; color: var(--primary); margin-bottom: 5px; border-bottom: 1px solid #eee; }
+        
+        table.mini-matrix { border-collapse: collapse; margin: 0 auto; font-family: monospace; font-size: 0.9rem; }
+        table.mini-matrix td { padding: 2px 5px; }
+        
+        /* Highlight for non-zero elements */
+        .nz { color: var(--accent); font-weight: bold; }
+        
+        /* Final Result */
+        .final-result {
+            background: #e0f7fa;
+            border: 2px solid #006064;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 20px;
+            text-align: center;
+        }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>可达性矩阵与传递闭包 (Reachability Matrix)</h1>
+        <div class="subtitle">定义 · 性质 · 布尔运算 · 综合例题详解</div>
+    </header>
+
+    <div class="container">
+
+        <!-- 1. 定义与性质 -->
+        <div class="card">
+            <div class="card-header">
+                1. 基础定义与性质
+                <span class="tag">0/1 矩阵</span>
+            </div>
+            <div class="definition-grid">
+                <div class="def-box">
+                    <strong>可达性矩阵 $P = (p_{ij})_{n \times n}$:</strong><br><br>
+                    $p_{ij} = \begin{cases} 1, & \text{若 } v_i \text{ 可达 } v_j \\ 0, & \text{否则} \end{cases}$
+                    <br><br>
+                    这不仅仅是邻接矩阵，而是包含了所有<strong>直接和间接</strong>路径的信息。
+                </div>
+                
+                <div class="def-box">
+                    <strong>关键性质：</strong>
+                    <ul>
+                        <li><strong>无向图：</strong> 可达性矩阵是<span style="color:blue">对称的</span> ($p_{ij} = p_{ji}$)。</li>
+                        <li><strong>有向图：</strong> <span style="color:red">不一定对称</span>。</li>
+                        <li><strong>主对角线：</strong> 恒为 1 (因为节点到自身总是可达的，距离为0)。</li>
+                    </ul>
+                    <div class="note-box">
+                        注意：虽然 $P$ 能告诉你“能不能到”，但无法告诉你“有几条路”或“有多远”。它是高度压缩的信息。
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. 计算原理：传递闭包 -->
+        <div class="card" style="border-left-color: var(--step-color);">
+            <div class="card-header" style="color: var(--step-color);">
+                2. 计算原理：传递闭包与布尔运算
+                <span class="tag" style="background:#fff3e0; color:#e65100;">Boolean Logic</span>
+            </div>
+            
+            <div class="logic-flow">
+                <div class="step-circle">1</div>
+                <div class="logic-text">
+                    $P = A^{(0)} \lor A^{(1)} \lor A^{(2)} \lor \dots \lor A^{(n)}$
+                </div>
+            </div>
+            
+            <div style="margin-top:15px; font-size:0.95rem; line-height:1.6;">
+                <ul>
+                    <li><strong>$A^{(k)}$</strong>: 表示长度<strong>恰好</strong>为 $k$ 的通路矩阵。</li>
+                    <li><strong>$\lor$ (逻辑或)</strong>: 布尔加法。即 $1+1=1, 1+0=1$。只要有一条长度为 $k$ 的路，就算可达。</li>
+                    <li><strong>$A^{(0)} = I$</strong>: 单位矩阵，表示长度为0的路径（自反性）。</li>
+                    <li><strong>$n$</strong>: 图的节点数。根据定理，若可达，必在 $n$ 步内可达。</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- 3. 综合例题详解 -->
+        <div class="card" style="border-left-color: var(--success);">
+            <div class="card-header" style="color: var(--success);">
+                3. PPT 综合例题详解 (Step-by-Step)
+                <span class="tag" style="background:#e8f5e9; color:#1b5e20;">n=5 的有向图</span>
+            </div>
+            
+            <div class="example-layout">
+                
+                <!-- 左侧：图示 -->
+                <div class="graph-panel">
+                    <div style="margin-bottom:10px; font-weight:bold;">图 G (5个节点)</div>
+                    <svg width="280" height="220">
+                        <defs>
+                            <marker id="arrow" markerWidth="8" markerHeight="8" refX="22" refY="3" orient="auto">
+                                <path d="M0,0 L0,6 L9,3 z" fill="#666" />
+                            </marker>
+                        </defs>
+                        
+                        <!-- Layout based on PPT Image:
+                             v2(top), v4(left), v3(bot), v5(right with loop), v1(bot-right)
+                             Arrows:
+                             v4 -> v2
+                             v2 -> v3
+                             v3 -> v4
+                             v2 -> v5
+                             v5 loop
+                             v5 -> v1
+                        -->
+                        
+                        <circle cx="140" cy="40" class="node" /><text x="140" y="40" class="node-text">v2</text>
+                        <circle cx="60" cy="100" class="node" /><text x="60" y="100" class="node-text">v4</text>
+                        <circle cx="140" cy="160" class="node" /><text x="140" y="160" class="node-text">v3</text>
+                        <circle cx="220" cy="100" class="node" /><text x="220" y="100" class="node-text">v5</text>
+                        <circle cx="220" cy="180" class="node" /><text x="220" y="180" class="node-text">v1</text>
+
+                        <!-- Edges -->
+                        <line x1="60" y1="100" x2="140" y2="40" class="edge" /> <!-- v4->v2 -->
+                        <line x1="140" y1="40" x2="140" y2="160" class="edge" /> <!-- v2->v3 -->
+                        <line x1="140" y1="160" x2="60" y2="100" class="edge" /> <!-- v3->v4 -->
+                        <line x1="140" y1="40" x2="220" y2="100" class="edge" /> <!-- v2->v5 -->
+                        <line x1="220" y1="100" x2="220" y2="180" class="edge" /> <!-- v5->v1 -->
+                        
+                        <!-- v5 Loop -->
+                        <path d="M220,100 C250,70 250,130 220,100" fill="none" stroke="#666" stroke-width="1.5" marker-end="url(#arrow)" />
+
+                    </svg>
+                    <div style="font-size:0.85rem; color:#666; margin-top:10px; text-align:center;">
+                        观察重点：<br>
+                        左侧形成 {v2, v3, v4} 的循环圈。<br>
+                        v5 有自环且指向 v1。
+                    </div>
+                </div>
+
+                <!-- 右侧：矩阵演变流 -->
+                <div class="matrix-panel">
+                    <div style="font-weight:bold; color:#333;">计算流程：幂次运算 $\to$ 布尔求和</div>
+                    
+                    <div class="matrix-row">
+                        <!-- A (1步) -->
+                        <div class="matrix-card">
+                            <div class="m-title">A (1步)</div>
+                            <table class="mini-matrix">
+                                <tr><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+                                <tr><td>0</td><td>0</td><td class="nz">1</td><td>0</td><td class="nz">1</td></tr>
+                                <tr><td>0</td><td>0</td><td>0</td><td class="nz">1</td><td>0</td></tr>
+                                <tr><td>0</td><td class="nz">1</td><td>0</td><td>0</td><td>0</td></tr>
+                                <tr><td class="nz">1</td><td>0</td><td>0</td><td>0</td><td class="nz">1</td></tr>
+                            </table>
+                        </div>
+
+                        <!-- A^2 (2步) -->
+                        <div class="matrix-card">
+                            <div class="m-title">A² (2步)</div>
+                            <table class="mini-matrix">
+                                <tr><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+                                <tr><td class="nz">1</td><td>0</td><td>0</td><td class="nz">1</td><td class="nz">1</td></tr>
+                                <tr><td>0</td><td class="nz">1</td><td>0</td><td>0</td><td>0</td></tr>
+                                <tr><td>0</td><td>0</td><td class="nz">1</td><td>0</td><td>0</td></tr>
+                                <tr><td class="nz">1</td><td>0</td><td>0</td><td>0</td><td class="nz">1</td></tr>
+                            </table>
+                        </div>
+
+                        <!-- A^3 (3步) -->
+                        <div class="matrix-card">
+                            <div class="m-title">A³ (3步)</div>
+                            <table class="mini-matrix">
+                                <tr><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+                                <tr><td class="nz">1</td><td class="nz">1</td><td>0</td><td>0</td><td class="nz">1</td></tr>
+                                <tr><td>0</td><td>0</td><td class="nz">1</td><td>0</td><td>0</td></tr>
+                                <tr><td>0</td><td>0</td><td>0</td><td class="nz">1</td><td>0</td></tr>
+                                <tr><td class="nz">1</td><td>0</td><td>0</td><td>0</td><td class="nz">1</td></tr>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Final P -->
+                    <div class="final-result">
+                        <div class="m-title" style="border:none; font-size:1.2rem;">最终结果 P (可达性矩阵)</div>
+                        <div style="font-size:0.9rem; margin-bottom:10px;">$P = I \lor A \lor A^2 \lor A^3 \lor A^4 \lor A^5$</div>
+                        
+                        <div style="display:inline-block; text-align:left;">
+                            <table class="mini-matrix" style="font-size:1.1rem;">
+                                <!-- v1 Row -->
+                                <tr><td class="nz">1</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+                                <!-- v2 Row -->
+                                <tr><td class="nz">1</td><td class="nz">1</td><td class="nz">1</td><td class="nz">1</td><td class="nz">1</td></tr>
+                                <!-- v3 Row -->
+                                <tr><td class="nz">1</td><td class="nz">1</td><td class="nz">1</td><td class="nz">1</td><td class="nz">1</td></tr>
+                                <!-- v4 Row -->
+                                <tr><td class="nz">1</td><td class="nz">1</td><td class="nz">1</td><td class="nz">1</td><td class="nz">1</td></tr>
+                                <!-- v5 Row -->
+                                <tr><td class="nz">1</td><td>0</td><td>0</td><td>0</td><td class="nz">1</td></tr>
+                            </table>
+                        </div>
+                        
+                        <div style="margin-top:10px; font-size:0.85rem; color:#006064;">
+                            解读：<br>
+                            v2, v3, v4 互相可达，且都能到 v1, v5。<br>
+                            v5 只能到 v1 和自己。<br>
+                            v1 哪也去不了 (Sink)。
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>
