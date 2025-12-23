@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图的结构修改运算可视化</title>
+    <style>
+        :root {
+            --bg-color: #f5f7fa;
+            --card-bg: #ffffff;
+            --theme-blue: #1565c0;     /* 幻灯片深蓝 */
+            --theme-text: #333;
+            --add-color: #2e7d32;      /* 绿色：加 */
+            --del-color: #c62828;      /* 红色：删 */
+            --merge-color: #ef6c00;    /* 橙色：收缩 */
+            --shadow: 0 6px 15px rgba(0,0,0,0.08);
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--theme-text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            max-width: 900px;
+            border-bottom: 3px solid var(--theme-blue);
+            padding-bottom: 15px;
+            width: 100%;
+        }
+
+        h1 { color: var(--theme-blue); margin: 0; font-size: 2rem; }
+        .subtitle { color: #666; margin-top: 8px; font-size: 1rem; }
+
+        /* 布局容器 */
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+            gap: 30px;
+            width: 100%;
+            max-width: 1200px;
+        }
+
+        /* 卡片通用样式 */
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            padding: 25px;
+            border-top: 5px solid transparent;
+            transition: transform 0.2s;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .card:hover { transform: translateY(-5px); }
+
+        /* 标题样式 */
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+
+        .op-title { font-size: 1.3rem; font-weight: bold; }
+        .op-badge {
+            padding: 4px 10px;
+            border-radius: 20px;
+            color: white;
+            font-size: 0.9rem;
+            font-weight: bold;
+        }
+
+        /* 符号定义 */
+        .formula {
+            background: #f0f2f5;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.95rem;
+            color: #444;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        /* 绘图区域布局 */
+        .visual-stage {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #fafafa;
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 15px;
+            flex-grow: 1;
+        }
+
+        .stage-box {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .stage-label {
+            font-size: 0.85rem;
+            color: #777;
+            margin-bottom: 5px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .arrow-divider {
+            font-size: 2rem;
+            color: #bbb;
+            margin: 0 10px;
+        }
+
+        /* SVG 通用样式 */
+        svg { overflow: visible; width: 140px; height: 120px; }
+        
+        .node { r: 10; stroke-width: 2px; stroke: #555; fill: white; }
+        .edge { stroke: #555; stroke-width: 2px; fill: none; }
+        
+        text { font-family: sans-serif; font-size: 12px; text-anchor: middle; dominant-baseline: middle; fill: #333; }
+
+        /* 底部说明 */
+        .key-point {
+            background: #fff8e1;
+            color: #f57f17;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            border-left: 4px solid #fdd835;
+        }
+        .key-point strong { margin-right: 5px; }
+
+        /* --- 特定配色与样式 --- */
+
+        /* 1. 加新边 */
+        .card-add { border-top-color: var(--add-color); }
+        .card-add .op-title { color: var(--add-color); }
+        .card-add .op-badge { background: var(--add-color); }
+        .new-edge { stroke: var(--add-color); stroke-width: 3px; stroke-dasharray: 5 3; animation: dash 1s linear infinite; }
+        
+        /* 2. 删除边 */
+        .card-del { border-top-color: var(--del-color); }
+        .card-del .op-title { color: var(--del-color); }
+        .card-del .op-badge { background: var(--del-color); }
+        .removed-edge { stroke: #e57373; stroke-width: 2px; stroke-dasharray: 2 2; opacity: 0.4; }
+
+        /* 3. 边的收缩 */
+        .card-contract { border-top-color: var(--merge-color); }
+        .card-contract .op-title { color: var(--merge-color); }
+        .card-contract .op-badge { background: var(--merge-color); }
+        .merge-node { fill: var(--merge-color); stroke: #e65100; r: 14; }
+        .target-edge { stroke: var(--merge-color); stroke-width: 4px; }
+        
+        /* 4. 删除结点 */
+        .card-del-node { border-top-color: #880e4f; }
+        .card-del-node .op-title { color: #880e4f; }
+        .card-del-node .op-badge { background: #880e4f; }
+        .target-node { fill: #e91e63; stroke: #880e4f; }
+        .faded-edge { stroke: #e57373; opacity: 0.2; stroke-dasharray: 2 2; }
+        .faded-node { fill: #f8bbd0; stroke: #f48fb1; opacity: 0.3; stroke-dasharray: 2 2;}
+
+        @keyframes dash { to { stroke-dashoffset: -10; } }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>图的结构修改运算 (Graph Modifications)</h1>
+        <div class="subtitle">加边 · 删边 · 收缩边 · 删点</div>
+    </header>
+
+    <div class="grid-container">
+
+        <!-- 1. 加新边 -->
+        <div class="card card-add">
+            <div class="card-header">
+                <span class="op-title">1. 加新边 (Add Edge)</span>
+                <span class="op-badge">G + e</span>
+            </div>
+            <div class="formula">G' = ⟨ V, E ∪ {e} ⟩</div>
+            
+            <div class="visual-stage">
+                <!-- Before -->
+                <div class="stage-box">
+                    <div class="stage-label">原图 G</div>
+                    <svg>
+                        <circle cx="40" cy="60" class="node" /> <text x="40" y="80">u</text>
+                        <circle cx="100" cy="60" class="node" /> <text x="100" y="80">v</text>
+                        <text x="70" y="20" fill="#999" font-size="10">未连接</text>
+                    </svg>
+                </div>
+                <div class="arrow-divider">➝</div>
+                <!-- After -->
+                <div class="stage-box">
+                    <div class="stage-label">新图 G'</div>
+                    <svg>
+                        <!-- 新边 -->
+                        <line x1="40" y1="60" x2="100" y2="60" class="new-edge" />
+                        
+                        <circle cx="40" cy="60" class="node" style="stroke:var(--add-color)"/> <text x="40" y="80" fill="var(--add-color)">u</text>
+                        <circle cx="100" cy="60" class="node" style="stroke:var(--add-color)"/> <text x="100" y="80" fill="var(--add-color)">v</text>
+                        <text x="70" y="45" fill="var(--add-color)" font-weight="bold">e</text>
+                    </svg>
+                </div>
+            </div>
+            <div class="key-point">
+                <strong>变化：</strong> 节点集合 V 不变，边集合 E 增加了一条边。
+            </div>
+        </div>
+
+        <!-- 2. 删除边 -->
+        <div class="card card-del">
+            <div class="card-header">
+                <span class="op-title">2. 删除边 (Delete Edge)</span>
+                <span class="op-badge">G - e</span>
+            </div>
+            <div class="formula">G' = ⟨ V, E - {e} ⟩</div>
+            
+            <div class="visual-stage">
+                <!-- Before -->
+                <div class="stage-box">
+                    <div class="stage-label">原图 G</div>
+                    <svg>
+                        <path d="M 70 20 L 30 90 L 110 90 Z" class="edge" stroke="#ddd" />
+                        <line x1="30" y1="90" x2="110" y2="90" class="edge" style="stroke:#c62828; stroke-width:3px;" />
+                        
+                        <circle cx="70" cy="20" class="node" />
+                        <circle cx="30" cy="90" class="node" />
+                        <circle cx="110" cy="90" class="node" />
+                        <text x="70" y="105" fill="#c62828">e (待删)</text>
+                    </svg>
+                </div>
+                <div class="arrow-divider">➝</div>
+                <!-- After -->
+                <div class="stage-box">
+                    <div class="stage-label">新图 G'</div>
+                    <svg>
+                        <line x1="70" y1="20" x2="30" y2="90" class="edge" />
+                        <line x1="70" y1="20" x2="110" y2="90" class="edge" />
+                        <!-- 删除的边变成虚影 -->
+                        <line x1="30" y1="90" x2="110" y2="90" class="removed-edge" />
+                        
+                        <circle cx="70" cy="20" class="node" />
+                        <circle cx="30" cy="90" class="node" />
+                        <circle cx="110" cy="90" class="node" />
+                        <text x="70" y="105" fill="#999" font-size="10">边已移除</text>
+                    </svg>
+                </div>
+            </div>
+            <div class="key-point">
+                <strong>重点：</strong> 仅删除了边 e，<span style="color:#c62828">端点 u, v 仍然保留</span>。
+            </div>
+        </div>
+
+        <!-- 3. 边的收缩 (最复杂) -->
+        <div class="card card-contract">
+            <div class="card-header">
+                <span class="op-title">3. 边的收缩 (Contraction)</span>
+                <span class="op-badge">G \ e</span>
+            </div>
+            <div class="formula">u, v 合并为 w (含删边e)</div>
+            
+            <div class="visual-stage">
+                <!-- Before -->
+                <div class="stage-box">
+                    <div class="stage-label">原图 (u--v)</div>
+                    <svg>
+                        <!-- External edges -->
+                        <line x1="30" y1="60" x2="10" y2="30" class="edge" />
+                        <line x1="110" y1="60" x2="130" y2="30" class="edge" />
+                        
+                        <!-- Target edge -->
+                        <line x1="30" y1="60" x2="110" y2="60" class="target-edge" />
+                        
+                        <circle cx="30" cy="60" class="node" /> <text x="30" y="80">u</text>
+                        <circle cx="110" cy="60" class="node" /> <text x="110" y="80">v</text>
+                        <text x="70" y="50" fill="var(--merge-color)" font-weight="bold">e</text>
+                    </svg>
+                </div>
+                <div class="arrow-divider">➝</div>
+                <!-- After -->
+                <div class="stage-box">
+                    <div class="stage-label">新图 (w)</div>
+                    <svg>
+                        <!-- Merged edges pointing to center -->
+                        <line x1="70" y1="60" x2="30" y2="30" class="edge" /> <!-- moved from u -->
+                        <line x1="70" y1="60" x2="110" y2="30" class="edge" /> <!-- moved from v -->
+                        
+                        <!-- New Node -->
+                        <circle cx="70" cy="60" class="node merge-node" /> 
+                        <text x="70" y="60" fill="white" font-weight="bold">w</text>
+                        
+                        <text x="70" y="95" fill="var(--merge-color)" font-size="10">u,v 融合</text>
+                    </svg>
+                </div>
+            </div>
+            <div class="key-point">
+                <strong>变化：</strong> 边 e 消失，端点 u, v 消失，由新点 w 代替。w 继承了 u 和 v 的所有<span style="color:var(--merge-color)">外部连接</span>。
+            </div>
+        </div>
+
+        <!-- 4. 删除结点 -->
+        <div class="card card-del-node">
+            <div class="card-header">
+                <span class="op-title">4. 删除结点 (Delete Vertex)</span>
+                <span class="op-badge">G - v</span>
+            </div>
+            <div class="formula">G' = G - v (删点必删边)</div>
+            
+            <div class="visual-stage">
+                <!-- Before -->
+                <div class="stage-box">
+                    <div class="stage-label">原图 (v为中心)</div>
+                    <svg>
+                        <!-- Incident edges -->
+                        <line x1="70" y1="60" x2="70" y2="20" class="edge" stroke="#e91e63"/>
+                        <line x1="70" y1="60" x2="30" y2="90" class="edge" stroke="#e91e63"/>
+                        <line x1="70" y1="60" x2="110" y2="90" class="edge" stroke="#e91e63"/>
+                        
+                        <!-- Neighbors -->
+                        <circle cx="70" cy="20" class="node" />
+                        <circle cx="30" cy="90" class="node" />
+                        <circle cx="110" cy="90" class="node" />
+                        
+                        <!-- Target Node -->
+                        <circle cx="70" cy="60" class="node target-node" /> 
+                        <text x="85" y="60" fill="#e91e63" font-weight="bold">v</text>
+                    </svg>
+                </div>
+                <div class="arrow-divider">➝</div>
+                <!-- After -->
+                <div class="stage-box">
+                    <div class="stage-label">新图 (v消失)</div>
+                    <svg>
+                        <!-- Faded edges and node -->
+                        <line x1="70" y1="60" x2="70" y2="20" class="faded-edge"/>
+                        <line x1="70" y1="60" x2="30" y2="90" class="faded-edge"/>
+                        <line x1="70" y1="60" x2="110" y2="90" class="faded-edge"/>
+                        
+                        <circle cx="70" cy="20" class="node" />
+                        <circle cx="30" cy="90" class="node" />
+                        <circle cx="110" cy="90" class="node" />
+                        
+                        <circle cx="70" cy="60" class="faded-node" /> 
+                        <text x="70" y="60" fill="#e57373" font-size="20">×</text>
+                    </svg>
+                </div>
+            </div>
+            <div class="key-point">
+                <strong>关键：</strong> 删除节点 v 时，<span style="color:#c62828">所有与 v 关联的边</span>也会自动被删除（因为边不能悬空）。
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>
