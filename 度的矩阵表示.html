@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图论矩阵表示 - 修复版</title>
+    <style>
+        :root {
+            --primary: #1565c0;   /* 主蓝 */
+            --green: #2e7d32;     /* 出度 */
+            --red: #c62828;       /* 入度 */
+            --bg: #f5f7fa;
+            --white: #ffffff;
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* 容器限制 */
+        .container {
+            width: 100%;
+            max-width: 1000px;
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+        }
+
+        header {
+            text-align: center;
+            border-bottom: 3px solid var(--primary);
+            padding-bottom: 15px;
+            width: 100%;
+            max-width: 900px;
+        }
+        h1 { margin: 0; color: var(--primary); font-size: 22px; }
+
+        /* 卡片基础 */
+        .card {
+            background: var(--white);
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            padding: 20px;
+            border-left: 5px solid #ccc;
+        }
+
+        .title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .tag {
+            font-size: 12px;
+            background: #e3f2fd;
+            color: var(--primary);
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+
+        /* --- 布局修复核心 --- */
+        .layout-row {
+            display: flex;
+            align-items: center; /* 垂直居中 */
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        /* SVG 通用 */
+        svg {
+            background: #fafafa;
+            border: 1px solid #eee;
+            border-radius: 6px;
+        }
+        .node { fill: white; stroke: #333; stroke-width: 2px; r: 14; }
+        .node-text { font-size: 12px; font-weight: bold; text-anchor: middle; dominant-baseline: middle; }
+        .edge { fill: none; stroke: #333; stroke-width: 1.5; }
+
+        /* 矩阵表格 */
+        .matrix-box {
+            position: relative;
+            padding: 0 10px;
+            display: inline-block;
+        }
+        /* 大括号效果 */
+        .matrix-box::before {
+            content: ""; position: absolute; top:0; bottom:0; left:0; width:6px;
+            border: 2px solid #333; border-right:none;
+        }
+        .matrix-box::after {
+            content: ""; position: absolute; top:0; bottom:0; right:0; width:6px;
+            border: 2px solid #333; border-left:none;
+        }
+
+        table.matrix { border-collapse: collapse; text-align: center; font-family: 'Consolas', monospace; }
+        table.matrix td, table.matrix th { padding: 6px 10px; }
+        
+        .hl-diag { background: #fff9c4; color: #f57f17; font-weight: bold; }
+        
+        /* 1. 无向图专用 */
+        .card-u { border-left-color: var(--primary); }
+        .calc-box {
+            background: #eceff1;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+
+        /* 2. 有向图专用 */
+        .card-d { border-left-color: var(--green); }
+        .out-text { color: var(--green); font-weight: bold; }
+        .in-text { color: var(--red); font-weight: bold; }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>度的矩阵表示 (Visualized)</h1>
+        <div style="font-size:14px; color:#666; margin-top:5px;">PPT 核心考点：自环修正与横出竖入</div>
+    </header>
+
+    <div class="container">
+
+        <!-- 第一部分：无向图自环修正 (修复排版与绘图) -->
+        <div class="card card-u">
+            <div class="title">
+                1. 无向图：邻接矩阵与自环修正
+                <span class="tag">考点: 对角线加两次</span>
+            </div>
+            
+            <div class="layout-row">
+                <!-- 左：图示 (使用贝塞尔曲线画标准的自环) -->
+                <div>
+                    <svg width="120" height="100">
+                        <circle cx="60" cy="50" class="node" stroke="#1565c0" />
+                        <text x="60" y="50" class="node-text">v1</text>
+                        <!-- 自环：M起点 C控制点1 控制点2 终点 -->
+                        <path d="M60,36 C20,0 100,0 60,36" fill="none" stroke="#1565c0" stroke-width="2"/>
+                        <text x="60" y="15" font-size="10" fill="#1565c0" text-anchor="middle">自环 e</text>
+                    </svg>
+                    <div style="text-align:center; font-size:12px; margin-top:5px; color:#666;">物理上是1条边<br>贡献2个度</div>
+                </div>
+
+                <!-- 中：公式 -->
+                <div style="font-size:24px; color:#ccc;">&rarr;</div>
+
+                <!-- 右：矩阵与计算 -->
+                <div>
+                    <div class="matrix-box">
+                        <table class="matrix">
+                            <tr><th></th><th>v1</th><th>...</th></tr>
+                            <tr>
+                                <th>v1</th>
+                                <td class="hl-diag">1</td> <!-- 对角线 -->
+                                <td>...</td>
+                            </tr>
+                            <tr><th>...</th><td>...</td><td>...</td></tr>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 结果 -->
+                <div class="calc-box">
+                    <strong>度数计算：</strong><br>
+                    <span style="font-family: monospace;">deg(v1) = ∑行元素 + <span style="color:#f57f17">a<sub>ii</sub></span></span><br>
+                    <br>
+                    计算： 1 (行和) + <span style="color:#f57f17">1 (对角线)</span> = <strong>2</strong>
+                </div>
+            </div>
+        </div>
+
+        <!-- 第二部分：有向图 (补充图例与例子) -->
+        <div class="card card-d">
+            <div class="title">
+                2. 有向图：出度与入度
+                <span class="tag" style="background:#e8f5e9; color:var(--green);">口诀: 竖入横出</span>
+            </div>
+            
+            <!-- 补充一个简单的有向图例子 -->
+            <div class="layout-row">
+                <!-- 左：图例 -->
+                <div style="text-align:center;">
+                    <svg width="150" height="100">
+                        <defs>
+                            <marker id="arrow" markerWidth="8" markerHeight="8" refX="22" refY="3" orient="auto">
+                                <path d="M0,0 L0,6 L9,3 z" fill="#333" />
+                            </marker>
+                        </defs>
+                        <!-- v1 -> v2 -->
+                        <line x1="40" y1="50" x2="110" y2="50" class="edge" marker-end="url(#arrow)" />
+                        
+                        <circle cx="40" cy="50" class="node" /> <text x="40" y="50" class="node-text">v1</text>
+                        <circle cx="110" cy="50" class="node" /> <text x="110" y="50" class="node-text">v2</text>
+                    </svg>
+                    <div style="font-size:12px; margin-top:5px;">简单示例图</div>
+                </div>
+
+                <!-- 中：矩阵 -->
+                <div class="matrix-box">
+                    <table class="matrix">
+                        <thead>
+                            <tr style="border-bottom:1px solid #eee;"><th></th><th>v1</th><th>v2</th></tr>
+                        </thead>
+                        <tbody>
+                            <!-- v1 行 (出度) -->
+                            <tr style="background:rgba(46, 125, 50, 0.1);">
+                                <th style="border-right:1px solid #eee;">v1</th>
+                                <td>0</td><td>1</td>
+                                <td style="border:none;" class="out-text">&larr; 出度=1</td>
+                            </tr>
+                            <!-- v2 行 -->
+                            <tr>
+                                <th style="border-right:1px solid #eee;">v2</th>
+                                <td>0</td><td>0</td>
+                            </tr>
+                            <!-- 入度统计行 -->
+                            <tr style="border-top:2px solid #eee;">
+                                <td style="border:none;"></td>
+                                <td class="in-text">0</td>
+                                <td class="in-text">1</td>
+                            </tr>
+                            <tr>
+                                <td style="border:none;"></td>
+                                <td style="border:none;"></td>
+                                <td style="border:none;" class="in-text">&uarr;<br>入度</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- 右：公式总结 -->
+                <div class="calc-box">
+                    <p style="margin:5px 0;"><span class="out-text">出度 deg<sup>+</sup></span> = <strong>行</strong>元素之和</p>
+                    <p style="margin:5px 0;"><span class="in-text">入度 deg<sup>-</sup></span> = <strong>列</strong>元素之和</p>
+                    <hr style="border:0; border-top:1px dashed #ccc;">
+                    <p style="margin:5px 0;"><strong>握手定理推论：</strong><br>∑出度 = ∑入度 = 边数m</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 第三部分：PPT原题综合应用 -->
+        <div class="card" style="border-left-color: #6a1b9a;">
+            <div class="title">
+                3. PPT 综合例题演示
+                <span class="tag" style="background:#f3e5f5; color:#6a1b9a;">原题验证</span>
+            </div>
+            
+            <p style="margin-top:0; color:#666; font-size:14px;">题目：求下图的邻接矩阵，并验证度数关系。</p>
+
+            <div class="layout-row" style="align-items: flex-start;">
+                
+                <!-- 1. 原题图 (复刻 PPT) -->
+                <div>
+                    <svg width="220" height="200">
+                        <!-- v4 loop -->
+                        <path d="M120,170 C90,200 150,200 120,170" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arrow)" />
+                        
+                        <!-- nodes -->
+                        <circle cx="120" cy="30" class="node" /><text x="120" y="30" class="node-text">v1</text>
+                        <circle cx="40" cy="100" class="node" /><text x="40" y="100" class="node-text">v2</text>
+                        <circle cx="200" cy="100" class="node" /><text x="200" y="100" class="node-text">v3</text>
+                        <circle cx="120" cy="170" class="node" /><text x="120" y="170" class="node-text">v4</text>
+                        <circle cx="180" cy="170" class="node" style="stroke:#ccc;" /><text x="180" y="170" class="node-text" fill="#999">v5</text>
+
+                        <!-- edges based on ppt matrix -->
+                        <!-- v2->v1, v2->v3 -->
+                        <line x1="40" y1="100" x2="120" y2="30" class="edge" marker-end="url(#arrow)" />
+                        <line x1="40" y1="100" x2="200" y2="100" class="edge" marker-end="url(#arrow)" />
+                        <!-- v3->v2 -->
+                        <path d="M200,100 Q120,140 40,100" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arrow)" />
+                        <!-- v4->v1 -->
+                        <line x1="120" y1="170" x2="120" y2="30" class="edge" marker-end="url(#arrow)" />
+                    </svg>
+                </div>
+
+                <!-- 2. 完整矩阵 -->
+                <div class="matrix-box">
+                    <table class="matrix">
+                        <thead>
+                            <tr style="border-bottom:2px solid #6a1b9a;">
+                                <th></th><th>v1</th><th>v2</th><th>v3</th><th>v4</th><th>v5</th>
+                                <th class="out-text" style="border-left:2px solid #eee;">出度</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <th style="border-right:1px solid #eee;">v1</th>
+                                <td>0</td><td>0</td><td>0</td><td>0</td><td>0</td>
+                                <td class="out-text">0</td>
+                            </tr>
+                            <tr>
+                                <th style="border-right:1px solid #eee;">v2</th>
+                                <td>1</td><td>0</td><td>1</td><td>0</td><td>0</td>
+                                <td class="out-text">2</td>
+                            </tr>
+                            <tr>
+                                <th style="border-right:1px solid #eee;">v3</th>
+                                <td>0</td><td>1</td><td>0</td><td>0</td><td>0</td>
+                                <td class="out-text">1</td>
+                            </tr>
+                            <tr>
+                                <th style="border-right:1px solid #eee;">v4</th>
+                                <td>1</td><td>0</td><td>0</td><td class="hl-diag">1</td><td>0</td>
+                                <td class="out-text">2</td>
+                            </tr>
+                            <tr>
+                                <th style="border-right:1px solid #eee;">v5</th>
+                                <td>0</td><td>0</td><td>0</td><td>0</td><td>0</td>
+                                <td class="out-text">0</td>
+                            </tr>
+                            <tr style="border-top:2px solid #6a1b9a;">
+                                <th class="in-text">入度</th>
+                                <td class="in-text">2</td><td class="in-text">1</td><td class="in-text">1</td><td class="in-text">1</td><td class="in-text">0</td>
+                                <td style="background:#f3e5f5; color:#6a1b9a; font-weight:bold;">∑=5</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>
