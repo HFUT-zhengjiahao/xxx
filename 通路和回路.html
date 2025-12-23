@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>通路与回路：全概念可视化 (修复版)</title>
+    <style>
+        :root {
+            --primary: #1565c0;      /* PPT主蓝 */
+            --bg: #f4f6f8;
+            --card-bg: #ffffff;
+            --text-main: #333;
+            --path-color: #f50057;   /* 路径高亮色 */
+            --node-color: #3f51b5;   /* 节点颜色 */
+            --base-stroke: #ddd;     /* 基础线条色 */
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 3px solid var(--primary);
+            padding-bottom: 10px;
+            width: 100%;
+            max-width: 1000px;
+        }
+
+        h1 { margin: 0; color: var(--primary); }
+        .subtitle { color: #666; font-size: 0.9rem; margin-top: 5px; }
+
+        /* 布局容器 */
+        .container {
+            width: 100%;
+            max-width: 1100px;
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+        }
+
+        /* 模块标题 */
+        .section-title {
+            font-size: 1.4rem;
+            font-weight: bold;
+            color: #333;
+            border-left: 5px solid var(--primary);
+            padding-left: 15px;
+            margin-bottom: 15px;
+        }
+
+        /* 定义卡片 */
+        .def-card {
+            background: #e3f2fd;
+            border-radius: 8px;
+            padding: 15px;
+            border: 1px solid #90caf9;
+            margin-bottom: 20px;
+        }
+        .math-exp {
+            font-family: 'Times New Roman', serif;
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #d81b60;
+            background: rgba(255,255,255,0.5);
+            padding: 2px 8px;
+            border-radius: 4px;
+            margin: 0 5px;
+        }
+
+        /* 网格系统 */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 20px;
+        }
+
+        /* 可视化卡片 */
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            border-top: 4px solid #ccc;
+            transition: transform 0.2s;
+        }
+        .card:hover { transform: translateY(-5px); }
+
+        /* 不同类型的边框色 */
+        .type-simple { border-top-color: #4caf50; } /* 简单 */
+        .type-elementary { border-top-color: #ff9800; } /* 基本 */
+        .type-complex { border-top-color: #9e9e9e; } /* 复杂 */
+
+        .card-title {
+            font-size: 1.1rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .badge {
+            font-size: 0.8rem;
+            padding: 3px 8px;
+            border-radius: 12px;
+            color: white;
+        }
+
+        /* SVG 样式 */
+        svg { overflow: visible; width: 200px; height: 120px; margin: 10px 0; }
+        .node { fill: white; stroke: var(--node-color); stroke-width: 2px; r: 10; }
+        .node-text { font-size: 10px; text-anchor: middle; dominant-baseline: middle; fill: var(--node-color); font-weight: bold; }
+        .edge-base { stroke: var(--base-stroke); stroke-width: 2px; }
+        
+        /* 路径动画样式 */
+        .edge-path { stroke: var(--path-color); stroke-width: 3px; fill: none; marker-end: url(#arrow); }
+        .order-badge { 
+            font-size: 10px; 
+            fill: white; 
+            font-weight: bold; 
+            paint-order: stroke;
+            stroke: var(--path-color);
+            stroke-width: 3px;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+        .order-bg { fill: var(--path-color); r: 7; }
+
+        /* 文本解析区 */
+        .analysis {
+            font-size: 0.9rem;
+            color: #555;
+            background: #fafafa;
+            padding: 10px;
+            width: 100%;
+            border-radius: 6px;
+            margin-top: 10px;
+        }
+        .highlight { color: #d81b60; font-weight: bold; }
+
+        /* 韦恩图优化 */
+        .venn-wrapper {
+            position: relative;
+            width: 220px;
+            height: 220px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .circle {
+            position: absolute;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding-top: 15px;
+            box-sizing: border-box;
+            font-size: 12px;
+            font-weight: bold;
+            box-shadow: 2px 2px 10px rgba(0,0,0,0.05);
+        }
+        .c-outer {
+            width: 220px; height: 220px;
+            background: #f5f5f5; border: 2px solid #ccc;
+            color: #666;
+            z-index: 1;
+            align-items: flex-start;
+            padding-top: 10px;
+        }
+        .c-mid {
+            width: 150px; height: 150px;
+            background: #e8f5e9; border: 2px solid #4caf50;
+            color: #2e7d32;
+            z-index: 2;
+            top: 50px; /* Offset */
+        }
+        .c-inner {
+            width: 80px; height: 80px;
+            background: #fff3e0; border: 2px solid #ff9800;
+            color: #e65100;
+            z-index: 3;
+            top: 40px; /* Relative to mid */
+            align-items: center;
+            padding-top: 0;
+        }
+
+        /* 关系式大字 */
+        .relation-text {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #333;
+            text-align: center;
+            margin-bottom: 10px;
+            background: #fff;
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>通路与回路 (Paths and Circuits)</h1>
+        <div class="subtitle">简单 vs 基本 vs 复杂 | 核心概念图解</div>
+    </header>
+
+    <div class="container">
+
+        <!-- 1. 定义部分 (修复数学符号) -->
+        <div class="def-card">
+            <h3 style="margin-top:0; color:var(--primary);">1. 基础定义</h3>
+            <p><strong>通路 &Gamma;：</strong> 节点与边交替出现的序列 <span class="math-exp">v<sub>0</sub> e<sub>1</sub> v<sub>1</sub> e<sub>2</sub> ... e<sub>k</sub> v<sub>k</sub></span>。</p>
+            <p><strong>长度：</strong> 通路中边 e 的数量 k。</p>
+            <p><strong>分类核心判据：</strong></p>
+            <ul style="display:flex; gap:20px; list-style:none; padding:0;">
+                <li>🔴 <strong>边</strong>是否重复？ &rarr; 决定是否“简单”</li>
+                <li>🔵 <strong>点</strong>是否重复？ &rarr; 决定是否“基本”</li>
+                <li>🏁 <strong>v<sub>0</sub> = v<sub>k</sub>？</strong> &rarr; 决定是“通路”还是“回路”</li>
+            </ul>
+        </div>
+
+        <!-- 2. 通路分类 (Paths) -->
+        <div class="section-title">2. 通路的分类 (v<sub>0</sub> &ne; v<sub>k</sub>)</div>
+        <div class="grid">
+            
+            <!-- 复杂通路 -->
+            <div class="card type-complex">
+                <div class="card-title">
+                    (3) 复杂通路
+                    <span class="badge" style="background:#9e9e9e">边重复</span>
+                </div>
+                <svg>
+                    <!-- Base Graph: Triangle v1-v2-v3 -->
+                    <polygon points="100,20 40,100 160,100" fill="none" stroke="#ddd" stroke-width="2"/>
+                    
+                    <!-- Path: v1->v2->v1 -->
+                    <line x1="100" y1="20" x2="40" y2="100" class="edge-path" stroke-dasharray="5,2"/> <!-- To v2 -->
+                    <line x1="40" y1="100" x2="100" y2="20" class="edge-path" transform="translate(5,0)" opacity="0.5"/> <!-- Back to v1 -->
+
+                    <circle cx="100" cy="20" class="node"/><text x="100" y="20" class="node-text">v1</text>
+                    <circle cx="40" cy="100" class="node"/><text x="40" y="100" class="node-text">v2</text>
+                    <circle cx="160" cy="100" class="node"/><text x="160" y="100" class="node-text">v3</text>
+
+                    <!-- Indicators -->
+                    <circle cx="70" cy="60" class="order-bg"/><text x="70" y="60" class="order-badge" text-anchor="middle" dominant-baseline="middle">1</text>
+                    <circle cx="85" cy="50" class="order-bg" style="fill:#aaa"/><text x="85" y="50" class="order-badge" text-anchor="middle" dominant-baseline="middle" stroke="#aaa">2</text>
+                </svg>
+                <div class="analysis">
+                    序列：v<sub>1</sub> &rarr; v<sub>2</sub> &rarr; v<sub>1</sub><br>
+                    <span class="highlight">有边重复</span> (e<sub>1</sub> 走了两次)。<br>
+                    这是最普通、无限制的通路。
+                </div>
+            </div>
+
+            <!-- 简单通路 -->
+            <div class="card type-simple">
+                <div class="card-title">
+                    (1) 简单通路 (Trail)
+                    <span class="badge" style="background:#4caf50">边互异 / 点可重</span>
+                </div>
+                <!-- Bowtie Graph -->
+                <svg>
+                    <defs>
+                        <marker id="arrow" markerWidth="6" markerHeight="6" refX="15" refY="3" orient="auto">
+                            <path d="M0,0 L0,6 L6,3 z" fill="#f50057" />
+                        </marker>
+                    </defs>
+                    <!-- Base Edges -->
+                    <path d="M40,20 L40,100 L100,60 Z" fill="none" stroke="#ddd" stroke-width="2"/> <!-- Left Tri -->
+                    <path d="M160,20 L160,100 L100,60 Z" fill="none" stroke="#ddd" stroke-width="2"/> <!-- Right Tri -->
+
+                    <!-- Path: v1->v2->v3->v4->v5 -->
+                    <line x1="40" y1="20" x2="40" y2="100" class="edge-path" />
+                    <line x1="40" y1="100" x2="100" y2="60" class="edge-path" />
+                    <line x1="100" y1="60" x2="160" y2="20" class="edge-path" />
+                    <line x1="160" y1="20" x2="160" y2="100" class="edge-path" />
+
+                    <!-- Nodes -->
+                    <circle cx="40" cy="20" class="node"/><text x="40" y="20" class="node-text">v1</text>
+                    <circle cx="40" cy="100" class="node"/><text x="40" y="100" class="node-text">v2</text>
+                    <circle cx="100" cy="60" class="node" style="stroke:#000; stroke-width:3px"/><text x="100" y="60" class="node-text">v3</text>
+                    <circle cx="160" cy="20" class="node"/><text x="160" y="20" class="node-text">v4</text>
+                    <circle cx="160" cy="100" class="node"/><text x="160" y="100" class="node-text">v5</text>
+
+                    <!-- Indicators -->
+                    <circle cx="30" cy="60" class="order-bg"/><text x="30" y="60" class="order-badge" text-anchor="middle" dominant-baseline="middle">1</text>
+                    <circle cx="70" cy="90" class="order-bg"/><text x="70" y="90" class="order-badge" text-anchor="middle" dominant-baseline="middle">2</text>
+                    <circle cx="130" cy="30" class="order-bg"/><text x="130" y="30" class="order-badge" text-anchor="middle" dominant-baseline="middle">3</text>
+                    <circle cx="170" cy="60" class="order-bg"/><text x="170" y="60" class="order-badge" text-anchor="middle" dominant-baseline="middle">4</text>
+                </svg>
+                <div class="analysis">
+                    序列：v<sub>1</sub>&rarr;v<sub>2</sub>&rarr;<span class="highlight">v<sub>3</sub></span>&rarr;v<sub>4</sub>&rarr;v<sub>5</sub> (&rarr;<span class="highlight">v<sub>3</sub></span>...)<br>
+                    <strong>边互异：</strong>没有走回头路。<br>
+                    <strong>点可重：</strong>如果继续走，中间点 v<sub>3</sub> 可能会被重复经过。
+                </div>
+            </div>
+
+            <!-- 基本通路 -->
+            <div class="card type-elementary">
+                <div class="card-title">
+                    (2) 基本通路 (Path)
+                    <span class="badge" style="background:#ff9800">点互异 (最严)</span>
+                </div>
+                <svg>
+                    <!-- Base: Square -->
+                    <rect x="50" y="20" width="100" height="80" fill="none" stroke="#ddd" stroke-width="2"/>
+                    
+                    <!-- Path: v1->v2->v3 -->
+                    <line x1="50" y1="20" x2="150" y2="20" class="edge-path" />
+                    <line x1="150" y1="20" x2="150" y2="100" class="edge-path" />
+
+                    <circle cx="50" cy="20" class="node"/><text x="50" y="20" class="node-text">v1</text>
+                    <circle cx="150" cy="20" class="node"/><text x="150" y="20" class="node-text">v2</text>
+                    <circle cx="150" cy="100" class="node"/><text x="150" y="100" class="node-text">v3</text>
+                    <circle cx="50" cy="100" class="node" style="stroke:#ddd"/><text x="50" y="100" class="node-text" fill="#ccc">v4</text>
+
+                    <circle cx="100" cy="10" class="order-bg"/><text x="100" y="10" class="order-badge" text-anchor="middle" dominant-baseline="middle">1</text>
+                    <circle cx="160" cy="60" class="order-bg"/><text x="160" y="60" class="order-badge" text-anchor="middle" dominant-baseline="middle">2</text>
+                </svg>
+                <div class="analysis">
+                    序列：v<sub>1</sub> &rarr; v<sub>2</sub> &rarr; v<sub>3</sub><br>
+                    <span class="highlight">所有结点各异</span> (除了不可能的起点=终点)。<br>
+                    这是最“纯净”的通路。
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. 回路分类 (Circuits) -->
+        <div class="section-title" style="margin-top:40px;">3. 回路的分类 (v<sub>0</sub> = v<sub>k</sub>)</div>
+        <div class="grid">
+            
+            <!-- 简单回路 -->
+            <div class="card type-simple">
+                <div class="card-title">
+                    (1) 简单回路
+                    <span class="badge" style="background:#4caf50">边互异 / 点可重</span>
+                </div>
+                <svg>
+                    <!-- Bowtie Graph ("8" shape) -->
+                    <path d="M40,20 L40,100 L100,60 Z" fill="none" stroke="#ddd" stroke-width="2"/>
+                    <path d="M160,20 L160,100 L100,60 Z" fill="none" stroke="#ddd" stroke-width="2"/>
+
+                    <!-- Path: Figure 8 -->
+                    <path d="M100,60 L40,20 L40,100 L100,60 L160,20 L160,100 L100,60" fill="none" stroke="#f50057" stroke-width="3" />
+
+                    <circle cx="100" cy="60" class="node" style="stroke:#000; stroke-width:3px"/><text x="100" y="60" class="node-text">v1</text>
+                    <circle cx="40" cy="20" class="node"/><text x="40" y="20" class="node-text">v2</text>
+                    <circle cx="40" cy="100" class="node"/><text x="40" y="100" class="node-text">v3</text>
+                    <circle cx="160" cy="20" class="node"/><text x="160" y="20" class="node-text">v4</text>
+                    <circle cx="160" cy="100" class="node"/><text x="160" y="100" class="node-text">v5</text>
+                </svg>
+                <div class="analysis">
+                    形状：8字形。<br>
+                    v<sub>1</sub>&rarr;v<sub>2</sub>&rarr;v<sub>3</sub>&rarr;v<sub>1</sub>&rarr;v<sub>4</sub>&rarr;v<sub>5</sub>&rarr;v<sub>1</sub><br>
+                    <strong>边互异：</strong>每条路只走一次。<br>
+                    <strong>点重复：</strong>中间的 <span class="highlight">v<sub>1</sub> 经过了3次</span>。
+                </div>
+            </div>
+
+            <!-- 基本回路 -->
+            <div class="card type-elementary">
+                <div class="card-title">
+                    (2) 基本回路 (圈/Cycle)
+                    <span class="badge" style="background:#ff9800">点互异 (除首尾)</span>
+                </div>
+                <svg>
+                    <!-- Triangle -->
+                    <polygon points="100,20 40,100 160,100" fill="none" stroke="#ddd" stroke-width="2"/>
+                    <polygon points="100,20 40,100 160,100" fill="none" stroke="#f50057" stroke-width="3"/>
+
+                    <circle cx="100" cy="20" class="node"/><text x="100" y="20" class="node-text">v1</text>
+                    <circle cx="40" cy="100" class="node"/><text x="40" y="100" class="node-text">v2</text>
+                    <circle cx="160" cy="100" class="node"/><text x="160" y="100" class="node-text">v3</text>
+                </svg>
+                <div class="analysis">
+                    形状：三角形、多边形。<br>
+                    v<sub>1</sub> &rarr; v<sub>2</sub> &rarr; v<sub>3</sub> &rarr; v<sub>1</sub><br>
+                    只有起点和终点重合，中间<span class="highlight">没有任何点重复</span>。
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. 关系总结 (修复了数学符号显示问题) -->
+        <div class="def-card" style="background:#fff3e0; border-color:#ffe0b2; margin-top:20px;">
+            <h3 style="margin-top:0; color:#e65100;">4. 概念关系总结</h3>
+            
+            <div class="relation-text">
+                基本回路 &sub; 简单回路 &sub; 回路
+            </div>
+
+            <div style="display:flex; align-items:center; justify-content:center; gap:50px; flex-wrap:wrap;">
+                <div style="flex:1; max-width:400px;">
+                    <ol>
+                        <li style="margin-bottom:10px;"><strong>包含关系：</strong> 如上图所示，基本的是最核心、条件最严格的，它是简单的子集；简单的是回路的子集。</li>
+                        <li style="margin-bottom:10px;"><strong>逆否命题：</strong> 
+                            <ul>
+                                <li>是基本 &rArr; 必是简单。</li>
+                                <li>不是简单 &rArr; 必不是基本。</li>
+                            </ul>
+                        </li>
+                    </ol>
+                </div>
+                <!-- 韦恩图 -->
+                <div class="venn-wrapper">
+                    <div class="circle c-outer">回路 (一般)</div>
+                    <div class="circle c-mid">简单 (边不重)
+                        <div class="circle c-inner">基本 (点不重)</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>
