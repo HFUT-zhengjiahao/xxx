@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>有向图的连通性 (Connectivity in Directed Graphs)</title>
+    
+    <script>
+    window.MathJax = {
+      tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] }
+    };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <style>
+        :root {
+            --primary: #1565c0;      /* PPT主蓝 */
+            --bg: #f4f6f8;
+            --card-bg: #ffffff;
+            --text: #333;
+            /* 连通性等级颜色 */
+            --strong: #2e7d32;       /* 强连通 */
+            --unilateral: #f57c00;   /* 单向连通 */
+            --weak: #757575;         /* 弱连通 */
+            --disconnect: #d32f2f;   /* 不连通 */
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            max-width: 1000px;
+            width: 100%;
+            background: var(--primary);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        h1 { margin: 0; font-size: 1.8rem; }
+        .subtitle { font-size: 1rem; opacity: 0.9; margin-top: 5px; }
+
+        .container {
+            width: 100%;
+            max-width: 1100px;
+            display: grid;
+            gap: 30px;
+        }
+
+        /* ---------------- 卡片系统 ---------------- */
+        .card {
+            background: var(--card-bg);
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            padding: 25px;
+            border-left: 5px solid var(--primary);
+        }
+
+        .card-header {
+            font-size: 1.4rem;
+            font-weight: bold;
+            color: var(--primary);
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .badge {
+            font-size: 0.85rem;
+            background: #e3f2fd;
+            color: var(--primary);
+            padding: 4px 10px;
+            border-radius: 4px;
+        }
+
+        /* ---------------- 1. 连通性分类展示 ---------------- */
+        .conn-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+        }
+
+        .conn-box {
+            background: #fafafa;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+            transition: transform 0.2s;
+        }
+        .conn-box:hover { transform: translateY(-5px); }
+
+        .conn-title { font-weight: bold; margin-bottom: 10px; font-size: 1.1rem; }
+        .conn-desc { font-size: 0.9rem; color: #666; margin-top: 10px; line-height: 1.5; }
+
+        /* ---------------- 2. 矩阵判定与定理 ---------------- */
+        .matrix-layout {
+            display: flex;
+            gap: 30px;
+            align-items: flex-start;
+            flex-wrap: wrap;
+        }
+        
+        .theorem-box {
+            flex: 1;
+            background: #e8f5e9;
+            border-left: 4px solid #2e7d32;
+            padding: 15px;
+            border-radius: 4px;
+        }
+
+        /* ---------------- 3. PPT 例题详解 ---------------- */
+        .example-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px;
+        }
+
+        .ex-card {
+            border: 1px solid #eee;
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+        }
+
+        /* SVG 样式 */
+        svg { overflow: visible; width: 100%; height: 150px; }
+        .node { fill: white; stroke: #333; stroke-width: 2px; r: 12; }
+        .node-text { font-size: 11px; font-weight: bold; text-anchor: middle; dominant-baseline: middle; fill: #333; pointer-events: none; }
+        .edge { stroke: #555; stroke-width: 1.5; fill: none; marker-end: url(#arrow); }
+        .edge-undir { stroke: #999; stroke-width: 1.5; stroke-dasharray: 4,2; } /* 弱连通的基图边 */
+
+        /* 结果标签 */
+        .res-tag {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            color: white;
+            font-weight: bold;
+            margin-top: 8px;
+        }
+
+        /* ---------------- 4. 包含关系图 ---------------- */
+        .venn-container {
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        .venn-circle {
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding-top: 15px;
+            position: relative;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.05);
+            font-size: 0.9rem;
+            font-weight: bold;
+        }
+
+        /* 响应式 */
+        @media (max-width: 800px) {
+            .conn-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>有向图的连通性 (Connectivity in Digraphs)</h1>
+        <div class="subtitle">强连通 · 单向连通 · 弱连通 | 矩阵判定 | 例题详解</div>
+    </header>
+
+    <div class="container">
+
+        <!-- 1. 定义与分类 -->
+        <div class="card">
+            <div class="card-header">
+                1. 连通性分类 (Hierarchy)
+                <span class="badge">由强到弱</span>
+            </div>
+            
+            <div class="conn-grid">
+                <!-- 强连通 -->
+                <div class="conn-box" style="border-top: 4px solid var(--strong);">
+                    <div class="conn-title" style="color:var(--strong)">强连通 (Strongly)</div>
+                    <svg viewBox="0 0 150 100">
+                        <defs>
+                            <marker id="arrow" markerWidth="6" markerHeight="6" refX="15" refY="3" orient="auto"><path d="M0,0 L0,6 L6,3 z" fill="#555" /></marker>
+                        </defs>
+                        <!-- Cycle: a -> b -> c -> a -->
+                        <path d="M75,20 L25,80 L125,80 Z" fill="rgba(46, 125, 50, 0.1)" stroke="none"/>
+                        <line x1="75" y1="20" x2="25" y2="80" class="edge"/>
+                        <line x1="25" y1="80" x2="125" y2="80" class="edge"/>
+                        <line x1="125" y1="80" x2="75" y2="20" class="edge"/>
+                        
+                        <circle cx="75" cy="20" class="node"/><text x="75" y="20" class="node-text">a</text>
+                        <circle cx="25" cy="80" class="node"/><text x="25" y="80" class="node-text">b</text>
+                        <circle cx="125" cy="80" class="node"/><text x="125" y="80" class="node-text">c</text>
+                    </svg>
+                    <div class="conn-desc">
+                        任意两点 $u, v$ 互相可达<br>
+                        $(u \leftrightarrow v)$<br>
+                        <strong>特征：</strong> 包含回路
+                    </div>
+                </div>
+
+                <!-- 单向连通 -->
+                <div class="conn-box" style="border-top: 4px solid var(--unilateral);">
+                    <div class="conn-title" style="color:var(--unilateral)">单向连通 (Unilateral)</div>
+                    <svg viewBox="0 0 150 100">
+                        <!-- Path: a -> b -> c -->
+                        <line x1="25" y1="50" x2="75" y2="50" class="edge"/>
+                        <line x1="75" y1="50" x2="125" y2="50" class="edge"/>
+                        
+                        <circle cx="25" cy="50" class="node"/><text x="25" y="50" class="node-text">a</text>
+                        <circle cx="75" cy="50" class="node"/><text x="75" y="50" class="node-text">b</text>
+                        <circle cx="125" cy="50" class="node"/><text x="125" y="50" class="node-text">c</text>
+                    </svg>
+                    <div class="conn-desc">
+                        任意两点至少有一个方向可达<br>
+                        $(u \to v \lor v \to u)$<br>
+                        <strong>特征：</strong> 存在一条经过所有点的半通路
+                    </div>
+                </div>
+
+                <!-- 弱连通 -->
+                <div class="conn-box" style="border-top: 4px solid var(--weak);">
+                    <div class="conn-title" style="color:var(--weak)">弱连通 (Weakly)</div>
+                    <svg viewBox="0 0 150 100">
+                        <!-- a -> b <- c -->
+                        <line x1="25" y1="50" x2="75" y2="50" class="edge"/>
+                        <line x1="125" y1="50" x2="75" y2="50" class="edge"/> <!-- Reverse arrow -->
+                        
+                        <circle cx="25" cy="50" class="node"/><text x="25" y="50" class="node-text">a</text>
+                        <circle cx="75" cy="50" class="node"/><text x="75" y="50" class="node-text">b</text>
+                        <circle cx="125" cy="50" class="node"/><text x="125" y="50" class="node-text">c</text>
+                    </svg>
+                    <div class="conn-desc">
+                        忽略方向后是连通图<br>
+                        (基图连通)<br>
+                        <strong>特征：</strong> $a \to b \leftarrow c$ (中间断流)
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 韦恩图展示包含关系 -->
+            <div class="venn-container">
+                <div class="venn-circle" style="width:300px; height:300px; background:#f5f5f5; border:1px solid #ccc; color:#666;">
+                    弱连通 (Weak)
+                    <div class="venn-circle" style="width:220px; height:220px; background:#fff3e0; border:1px solid #ffb74d; color:#e65100; top:40px;">
+                        单向连通 (Unilateral)
+                        <div class="venn-circle" style="width:140px; height:140px; background:#e8f5e9; border:1px solid #4caf50; color:#1b5e20; top:40px; align-items:center; padding-top:0;">
+                            强连通
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. 矩阵判定法 -->
+        <div class="card" style="border-left-color: #6a1b9a;">
+            <div class="card-header" style="color:#6a1b9a;">
+                2. 连通性的矩阵判定
+                <span class="badge" style="color:#6a1b9a; background:#f3e5f5;">可达矩阵 P</span>
+            </div>
+            
+            <div class="matrix-layout">
+                <div style="flex:1;">
+                    <p>设 $P$ 为有向图 $G$ 的可达性矩阵 ($p_{ij}=1 \iff v_i \to v_j$)：</p>
+                    
+                    <div style="margin-bottom:15px;">
+                        <strong>(1) 强连通判定：</strong><br>
+                        $$ P \text{ 的所有元素均为 } 1 $$
+                        <small style="color:#666;">(即任意点可达任意点)</small>
+                    </div>
+
+                    <div style="margin-bottom:15px;">
+                        <strong>(2) 单向连通判定：</strong><br>
+                        $$ P \lor P^T \text{ 的所有元素均为 } 1 $$
+                        <small style="color:#666;">(即对于任意 $i,j$，要么 $p_{ij}=1$ 要么 $p_{ji}=1$)</small>
+                    </div>
+
+                    <div>
+                        <strong>(3) 弱连通判定：</strong><br>
+                        $$ A' = A \lor A^T \text{ (转化为无向图矩阵)} $$
+                        计算 $A'$ 对应的可达矩阵 $P'$，若全为 1 则弱连通。
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. PPT 例题详解 -->
+        <div class="card" style="border-left-color: var(--unilateral);">
+            <div class="card-header" style="color:var(--unilateral);">
+                3. PPT 综合例题详解
+                <span class="badge" style="color:var(--unilateral); background:#fff3e0;">G1 - G4</span>
+            </div>
+            
+            <div class="question-box" style="background:#fff8e1; border:1px solid #ffecb3; padding:10px; border-radius:6px; margin-bottom:15px; color:#5d4037;">
+                【例题】判断下列 4 个有向图的连通性类型。
+            </div>
+
+            <div class="example-row">
+                
+                <!-- G1: 弱连通 -->
+                <div class="ex-card">
+                    <strong>(a) 图 $G_1$</strong>
+                    <svg viewBox="0 0 100 100">
+                        <circle cx="20" cy="20" class="node"/><text x="20" y="20" class="node-text">1</text>
+                        <circle cx="20" cy="80" class="node"/><text x="20" y="80" class="node-text">2</text>
+                        <circle cx="80" cy="20" class="node"/><text x="80" y="20" class="node-text">3</text>
+                        <circle cx="80" cy="80" class="node"/><text x="80" y="80" class="node-text">4</text>
+                        
+                        <line x1="20" y1="20" x2="20" y2="80" class="edge"/> <!-- 1->2 -->
+                        <line x1="80" y1="20" x2="80" y2="80" class="edge"/> <!-- 3->4 -->
+                        <line x1="20" y1="20" x2="80" y2="20" class="edge"/> <!-- 1->3 -->
+                        <!-- 4 is sink, 2 is sink relative to 1... Wait, structure from PPT -->
+                        <!-- 1->2, 3->4, 1->3. No path 2->4 or 4->2 -->
+                    </svg>
+                    <span class="res-tag" style="background:var(--weak)">弱连通</span>
+                    <div style="font-size:0.8rem; margin-top:5px; color:#666;">
+                        $v_4$ 到 $v_1$ 不可达<br>
+                        $v_1$ 到 $v_4$ 可达<br>
+                        但在 $v_2$ 和 $v_4$ 之间双向均不可达。
+                    </div>
+                </div>
+
+                <!-- G2: 单向连通 -->
+                <div class="ex-card">
+                    <strong>(b) 图 $G_2$</strong>
+                    <svg viewBox="0 0 100 100">
+                        <!-- Linear like structure 1->3->4->2 ? Based on PPT logic -->
+                        <circle cx="20" cy="20" class="node"/><text x="20" y="20" class="node-text">1</text>
+                        <circle cx="80" cy="20" class="node"/><text x="80" y="20" class="node-text">3</text>
+                        <circle cx="80" cy="80" class="node"/><text x="80" y="80" class="node-text">4</text>
+                        <circle cx="20" cy="80" class="node"/><text x="20" y="80" class="node-text">2</text>
+                        
+                        <line x1="20" y1="20" x2="80" y2="20" class="edge"/> <!-- 1->3 -->
+                        <line x1="80" y1="20" x2="80" y2="80" class="edge"/> <!-- 3->4 -->
+                        <line x1="80" y1="80" x2="20" y2="80" class="edge"/> <!-- 4->2 -->
+                        <!-- Path 1->3->4->2 exists -->
+                    </svg>
+                    <span class="res-tag" style="background:var(--unilateral)">单向连通</span>
+                    <div style="font-size:0.8rem; margin-top:5px; color:#666;">
+                        存在通路 $v_1 \to v_3 \to v_4 \to v_2$<br>
+                        但这不仅是弱连通，更是单向。<br>
+                        (不是强连通因无法返回)
+                    </div>
+                </div>
+
+                <!-- G3: 强连通 -->
+                <div class="ex-card">
+                    <strong>(c) 图 $G_3$</strong>
+                    <svg viewBox="0 0 100 100">
+                        <!-- Cycle 1->3->4->2->1 -->
+                        <circle cx="20" cy="20" class="node"/><text x="20" y="20" class="node-text">1</text>
+                        <circle cx="80" cy="20" class="node"/><text x="80" y="20" class="node-text">3</text>
+                        <circle cx="80" cy="80" class="node"/><text x="80" y="80" class="node-text">4</text>
+                        <circle cx="20" cy="80" class="node"/><text x="20" y="80" class="node-text">2</text>
+                        
+                        <line x1="20" y1="20" x2="80" y2="20" class="edge"/> <!-- 1->3 -->
+                        <line x1="80" y1="20" x2="80" y2="80" class="edge"/> <!-- 3->4 -->
+                        <line x1="80" y1="80" x2="20" y2="80" class="edge"/> <!-- 4->2 -->
+                        <line x1="20" y1="80" x2="20" y2="20" class="edge"/> <!-- 2->1 -->
+                    </svg>
+                    <span class="res-tag" style="background:var(--strong)">强连通</span>
+                    <div style="font-size:0.8rem; margin-top:5px; color:#666;">
+                        存在回路涵盖所有点。<br>
+                        任意两点双向可达。
+                    </div>
+                </div>
+
+                <!-- G4: 不连通 -->
+                <div class="ex-card">
+                    <strong>(d) 图 $G_4$</strong>
+                    <svg viewBox="0 0 100 100">
+                        <!-- 1->2->3, and 4 is isolated -->
+                        <circle cx="20" cy="20" class="node"/><text x="20" y="20" class="node-text">1</text>
+                        <circle cx="20" cy="80" class="node"/><text x="20" y="80" class="node-text">2</text>
+                        <circle cx="80" cy="20" class="node"/><text x="80" y="20" class="node-text">3</text>
+                        <circle cx="80" cy="80" class="node" style="stroke:#d32f2f"/><text x="80" y="80" class="node-text">4</text>
+                        
+                        <line x1="20" y1="20" x2="20" y2="80" class="edge"/>
+                        <line x1="20" y1="80" x2="80" y2="20" class="edge"/>
+                        
+                        <path d="M85,85 A5,5 0 1 1 80,75" fill="none" stroke="#d32f2f" stroke-width="1.5" marker-end="url(#arrow)"/> <!-- loop on 4 -->
+                    </svg>
+                    <span class="res-tag" style="background:var(--disconnect)">不连通</span>
+                    <div style="font-size:0.8rem; margin-top:5px; color:#666;">
+                        $v_4$ 虽有自环，但与其他点无任何边相连。<br>
+                        基图不连通。
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>
