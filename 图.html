@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图</title>
+    <style>
+        :root {
+            --u-color: #2196F3; /* 无向图主色 */
+            --u-bg: #E3F2FD;
+            --d-color: #FF5722; /* 有向图主色 */
+            --d-bg: #FBE9E7;
+            --success: #4CAF50;
+            --warning: #FF9800;
+            --text: #37474F;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            background: #f0f2f5;
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1000px;
+            background: #fff;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+            overflow: hidden;
+        }
+
+        header {
+            text-align: center;
+            padding: 30px;
+            border-bottom: 1px solid #eee;
+        }
+
+        h1 { margin: 0; color: #263238; font-size: 24px; }
+        p.subtitle { color: #78909C; margin-top: 8px; }
+
+        /* 网格布局 */
+        .grid-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            border-bottom: 1px solid #eee;
+        }
+
+        .grid-header {
+            background: #fafafa;
+            font-weight: bold;
+            text-align: center;
+            padding: 15px;
+            font-size: 18px;
+            letter-spacing: 1px;
+        }
+
+        .col {
+            padding: 25px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+        }
+
+        .col-u { background: #fff; }
+        .col-d { background: #fff; border-left: 1px solid #f0f0f0; }
+
+        /* 标题标签 */
+        .badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        .badge.u { background: var(--u-bg); color: var(--u-color); }
+        .badge.d { background: var(--d-bg); color: var(--d-color); }
+
+        /* 文字描述 */
+        .desc {
+            text-align: center;
+            font-size: 14px;
+            line-height: 1.6;
+            margin-bottom: 20px;
+            max-width: 300px;
+        }
+        .highlight { font-weight: bold; }
+        .u-text { color: var(--u-color); }
+        .d-text { color: var(--d-color); }
+        .sub-text { color: #999; font-size: 12px; display: block; margin-top: 4px;}
+
+        /* SVG 通用 */
+        svg {
+            display: block;
+            margin: 0 auto;
+            overflow: visible;
+        }
+        
+        text { font-family: sans-serif; text-anchor: middle; font-size: 14px; fill: #455A64; }
+        
+        /* 动画/交互提示 */
+        .col:hover { background-color: #fafcfd; }
+        
+        /* 响应式 */
+        @media (max-width: 768px) {
+            .grid-row { grid-template-columns: 1fr; }
+            .col-d { border-left: none; border-top: 1px solid #eee; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>图论关系定义：无向 vs 有向</h1>
+        <p class="subtitle">一张图看懂“邻接”与“关联”的严格区别</p>
+    </header>
+
+    <!-- 表头 -->
+    <div class="grid-row">
+        <div class="grid-header" style="color: var(--u-color); border-bottom: 3px solid var(--u-color);">无向图 (Undirected)</div>
+        <div class="grid-header" style="color: var(--d-color); border-bottom: 3px solid var(--d-color);">有向图 (Directed)</div>
+    </div>
+
+    <!-- 第一行：点与点的关系 -->
+    <div class="grid-row">
+        <!-- 无向 -->
+        <div class="col col-u">
+            <div class="badge u">1. 邻接点 (Adjacent Vertices)</div>
+            <div class="desc">
+                地位平等，<span class="highlight u-text">互为邻接点</span>。
+            </div>
+            <svg width="200" height="60">
+                <line x1="30" y1="30" x2="170" y2="30" stroke="#2196F3" stroke-width="3" />
+                <circle cx="30" cy="30" r="15" fill="#E3F2FD" stroke="#2196F3" stroke-width="2"/>
+                <circle cx="170" cy="30" r="15" fill="#E3F2FD" stroke="#2196F3" stroke-width="2"/>
+                <text x="30" y="35">u</text>
+                <text x="170" y="35">v</text>
+                <text x="100" y="20" font-size="12" fill="#2196F3">互为邻接</text>
+            </svg>
+        </div>
+
+        <!-- 有向 -->
+        <div class="col col-d">
+            <div class="badge d">1. 邻接点 (方向决定)</div>
+            <div class="desc">
+                u &rarr; v<br>
+                v 是 u 的 <span class="highlight d-text">邻接点</span><br>
+                <span class="sub-text">(u 只是 v 的“半邻接点”)</span>
+            </div>
+            <svg width="200" height="60">
+                <defs>
+                    <marker id="arrow" markerWidth="10" markerHeight="10" refX="22" refY="3" orient="auto">
+                        <path d="M0,0 L0,6 L9,3 z" fill="#FF5722" />
+                    </marker>
+                </defs>
+                <line x1="30" y1="30" x2="170" y2="30" stroke="#FF5722" stroke-width="3" marker-end="url(#arrow)" />
+                <circle cx="30" cy="30" r="15" fill="#fff" stroke="#FF5722" stroke-width="2" stroke-dasharray="4 2"/>
+                <circle cx="170" cy="30" r="15" fill="#FBE9E7" stroke="#FF5722" stroke-width="2"/>
+                <text x="30" y="35">u</text>
+                <text x="170" y="35">v</text>
+                <text x="100" y="20" font-size="12" fill="#FF5722">正统邻接点</text>
+                <text x="170" y="60" font-size="10" fill="#999">↑</text>
+            </svg>
+        </div>
+    </div>
+
+    <!-- 第二行：点与边的关系 -->
+    <div class="grid-row">
+        <!-- 无向 -->
+        <div class="col col-u">
+            <div class="badge u">2. 关联边 (Incidence)</div>
+            <div class="desc">
+                只要相连，即为<span class="highlight u-text">关联边</span>。
+            </div>
+            <svg width="200" height="80">
+                <line x1="100" y1="40" x2="40" y2="70" stroke="#90CAF9" stroke-width="2" />
+                <line x1="100" y1="40" x2="160" y2="70" stroke="#2196F3" stroke-width="4" />
+                <circle cx="100" cy="40" r="15" fill="#E3F2FD" stroke="#2196F3" stroke-width="2"/>
+                <text x="100" y="45">u</text>
+                <text x="160" y="85" font-size="12" fill="#2196F3">关联边</text>
+            </svg>
+        </div>
+
+        <!-- 有向 -->
+        <div class="col col-d">
+            <div class="badge d">2. 关联边 (出与入)</div>
+            <div class="desc">
+                u 为起点 = <span class="highlight d-text">关联边 (出边)</span><br>
+                <span class="sub-text">(作为终点时，称为半关联边/入边)</span>
+            </div>
+            <svg width="200" height="80">
+                <!-- 入边 (灰色) -->
+                <line x1="40" y1="70" x2="100" y2="40" stroke="#ccc" stroke-width="2" marker-end="url(#arrow-gray)" />
+                <!-- 出边 (亮色) -->
+                <line x1="100" y1="40" x2="160" y2="70" stroke="#FF5722" stroke-width="3" marker-end="url(#arrow)" />
+                
+                <circle cx="100" cy="40" r="15" fill="#FBE9E7" stroke="#FF5722" stroke-width="2"/>
+                <text x="100" y="45">u</text>
+                <text x="170" y="85" font-size="12" fill="#FF5722">关联边(出)</text>
+                <text x="30" y="85" font-size="12" fill="#999">半关联(入)</text>
+            </svg>
+        </div>
+    </div>
+
+    <!-- 第三行：边与边的关系 (最难点) -->
+    <div class="grid-row" style="border-bottom: none;">
+        <!-- 无向 -->
+        <div class="col col-u">
+            <div class="badge u">3. 邻接边 (Adjacent Edges)</div>
+            <div class="desc">
+                有公共点 = <span class="highlight u-text">邻接边</span>。<br>
+                无需考虑方向。
+            </div>
+            <svg width="200" height="100">
+                <path d="M40,80 L100,30 L160,80" fill="none" stroke="#2196F3" stroke-width="3" />
+                <circle cx="100" cy="30" r="8" fill="#FFC107" />
+                <text x="100" y="20" font-size="12" fill="#FFC107">公共点</text>
+                <text x="60" y="60" font-size="12" fill="#2196F3">边1</text>
+                <text x="140" y="60" font-size="12" fill="#2196F3">边2</text>
+            </svg>
+        </div>
+
+        <!-- 有向 -->
+        <div class="col col-d">
+            <div class="badge d" style="background: #FFF3E0; color:#E65100">3. 邻接边 vs 半邻接边</div>
+            <div class="desc">
+                <strong style="color:#4CAF50">情况 A：头对尾 (Head-to-Tail)</strong><br>
+                <span style="font-size:12px; color:#666">像水流一样顺畅 &rarr; <span class="highlight" style="color:#4CAF50">邻接边</span></span>
+            </div>
+            
+            <svg width="240" height="50" style="background:#F1F8E9; border-radius:8px; padding:10px 0;">
+                <defs>
+                    <marker id="arrow-green" markerWidth="10" markerHeight="10" refX="22" refY="3" orient="auto">
+                        <path d="M0,0 L0,6 L9,3 z" fill="#4CAF50" />
+                    </marker>
+                </defs>
+                <line x1="40" y1="25" x2="120" y2="25" stroke="#4CAF50" stroke-width="3" marker-end="url(#arrow-green)" />
+                <line x1="120" y1="25" x2="200" y2="25" stroke="#4CAF50" stroke-width="3" marker-end="url(#arrow-green)" />
+                <circle cx="120" cy="25" r="5" fill="#4CAF50" />
+                <text x="120" y="45" font-size="11" fill="#4CAF50">公共点 (过渡)</text>
+            </svg>
+
+            <div class="desc" style="margin-top:20px;">
+                <strong style="color:#FF9800">情况 B：头对头 / 尾对尾</strong><br>
+                <span style="font-size:12px; color:#666">冲突或分叉 &rarr; <span class="highlight" style="color:#FF9800">半邻接边</span></span>
+            </div>
+
+            <svg width="240" height="50" style="background:#FFF3E0; border-radius:8px; padding:10px 0;">
+                <defs>
+                    <marker id="arrow-orange" markerWidth="10" markerHeight="10" refX="22" refY="3" orient="auto">
+                        <path d="M0,0 L0,6 L9,3 z" fill="#FF9800" />
+                    </marker>
+                </defs>
+                <!-- 尾对尾例子 -->
+                <line x1="120" y1="25" x2="50" y2="25" stroke="#FF9800" stroke-width="2" marker-end="url(#arrow-orange)" />
+                <line x1="120" y1="25" x2="190" y2="25" stroke="#FF9800" stroke-width="2" marker-end="url(#arrow-orange)" />
+                <circle cx="120" cy="25" r="5" fill="#FF9800" />
+                <text x="120" y="45" font-size="11" fill="#FF9800">公共点 (源头)</text>
+            </svg>
+            <p class="sub-text" style="margin-top:5px;">(注：通常情况下，半邻接边也被统称为邻接边)</p>
+        </div>
+    </div>
+
+</div>
+
+</body>
+</html>
