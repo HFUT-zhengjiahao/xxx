@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图论：节点的度数全解析</title>
+    <style>
+        :root {
+            --bg-color: #f5f7fa;
+            --card-bg: #ffffff;
+            --text-main: #2c3e50;
+            --blue-theme: #1976d2;  /* 无向/通用 */
+            --green-out: #43a047;   /* 出度 */
+            --red-in: #e53935;      /* 入度 */
+            --orange-spec: #fb8c00; /* 悬挂/特殊 */
+            --radius: 12px;
+            --shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            max-width: 900px;
+            border-bottom: 3px solid var(--blue-theme);
+            padding-bottom: 15px;
+            width: 100%;
+        }
+
+        h1 { color: var(--blue-theme); margin: 0; font-size: 2rem; }
+        .subtitle { color: #546e7a; margin-top: 5px; }
+
+        .container {
+            width: 100%;
+            max-width: 1100px;
+            display: grid;
+            gap: 30px;
+        }
+
+        /* 通用卡片样式 */
+        .card {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 25px;
+            overflow: hidden;
+            border-top: 5px solid #ccc;
+        }
+
+        .card-header {
+            font-size: 1.4rem;
+            font-weight: bold;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+
+        /* 徽章样式 */
+        .badge {
+            padding: 4px 10px;
+            border-radius: 4px;
+            color: white;
+            font-size: 0.9rem;
+            font-weight: bold;
+            font-family: monospace;
+        }
+
+        /* 公式块 */
+        .formula-block {
+            background: #eceff1;
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            font-family: 'Courier New', monospace;
+            text-align: center;
+            color: #37474f;
+        }
+
+        /* 布局辅助 */
+        .row { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; }
+        .col { flex: 1; min-width: 300px; }
+
+        /* SVG 样式 */
+        svg { overflow: visible; width: 100%; height: 200px; background: #fafafa; border-radius: 8px; }
+        .node { fill: white; stroke-width: 2px; r: 15; cursor: pointer; transition: all 0.3s; }
+        .node:hover { r: 18; stroke-width: 3px; }
+        .node-text { font-size: 14px; text-anchor: middle; dominant-baseline: middle; fill: #333; font-weight: bold; pointer-events: none;}
+        .edge { stroke-width: 2px; fill: none; }
+        
+        .label-bg { fill: rgba(255,255,255,0.8); }
+        .deg-label { font-size: 12px; font-weight: bold; text-anchor: middle; }
+
+        /* --- 1. 无向图样式 --- */
+        .card-undirected { border-top-color: var(--blue-theme); }
+        .card-undirected .card-header { color: var(--blue-theme); }
+        .node-u { stroke: var(--blue-theme); }
+        .edge-u { stroke: var(--blue-theme); }
+
+        /* --- 2. 有向图样式 --- */
+        .card-directed { border-top-color: var(--green-out); }
+        .card-directed .card-header { color: var(--green-out); }
+        .node-d { stroke: #333; }
+        
+        /* 箭头定义在 SVG defs 中 */
+
+        /* --- 3. 特殊度数样式 --- */
+        .card-special { border-top-color: var(--orange-spec); }
+        .card-special .card-header { color: var(--orange-spec); }
+
+        /* --- 4. 例题样式 --- */
+        .card-ex { border-top-color: #673ab7; }
+        .card-ex .card-header { color: #673ab7; }
+        
+        table.data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.95rem;
+        }
+        table.data-table th, table.data-table td {
+            padding: 8px;
+            text-align: center;
+            border-bottom: 1px solid #eee;
+        }
+        table.data-table th { background: #f3e5f5; color: #4a148c; }
+        .val-out { color: var(--green-out); font-weight: bold; }
+        .val-in { color: var(--red-in); font-weight: bold; }
+        .val-tot { color: #333; font-weight: bold; }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>图论：节点的度数 (Vertex Degree)</h1>
+        <div class="subtitle">涵盖：无向度数 · 有向出入度 · 最大最小度 · 悬挂与正则</div>
+    </header>
+
+    <div class="container">
+
+        <!-- 1. 无向图度数 -->
+        <div class="card card-undirected">
+            <div class="card-header">
+                1. 无向图的度数 (Undirected)
+                <span class="badge" style="background:var(--blue-theme)">deg(v)</span>
+            </div>
+            <div class="row">
+                <div class="col">
+                    <div class="formula-block">
+                        deg(v) = 与 v 关联的边数<br>
+                        <span style="font-size:0.85em; color:#666;">(注：自环贡献 2 度)</span>
+                    </div>
+                    <ul>
+                        <li><strong>最大度 Δ(G):</strong> 图中度数最大的值</li>
+                        <li><strong>最小度 δ(G):</strong> 图中度数最小的值</li>
+                    </ul>
+                </div>
+                <div class="col">
+                    <svg viewBox="0 0 300 150">
+                        <!-- Edges -->
+                        <line x1="50" y1="75" x2="150" y2="25" class="edge edge-u" />
+                        <line x1="50" y1="75" x2="150" y2="125" class="edge edge-u" />
+                        <line x1="150" y1="25" x2="150" y2="125" class="edge edge-u" />
+                        <line x1="150" y1="25" x2="250" y2="75" class="edge edge-u" />
+                        <line x1="150" y1="125" x2="250" y2="75" class="edge edge-u" />
+                        
+                        <!-- Nodes -->
+                        <!-- v1: deg 2 -->
+                        <circle cx="50" cy="75" class="node node-u" />
+                        <text x="50" y="75" class="node-text">v1</text>
+                        <text x="50" y="105" class="deg-label" fill="#1976d2">deg=2 (δ)</text>
+
+                        <!-- v2: deg 3 -->
+                        <circle cx="150" cy="25" class="node node-u" />
+                        <text x="150" y="25" class="node-text">v2</text>
+                        <text x="150" y="55" class="deg-label" fill="#1976d2">deg=3</text>
+
+                        <!-- v3: deg 3 -->
+                        <circle cx="150" cy="125" class="node node-u" />
+                        <text x="150" y="125" class="node-text">v3</text>
+                        <text x="150" y="155" class="deg-label" fill="#1976d2">deg=3</text>
+
+                        <!-- v4: deg 2 -->
+                        <circle cx="250" cy="75" class="node node-u" />
+                        <text x="250" y="75" class="node-text">v4</text>
+                        <text x="250" y="105" class="deg-label" fill="#1976d2">deg=2</text>
+
+                        <text x="150" y="10" font-size="12" text-anchor="middle" fill="#666">最大度 Δ=3, 最小度 δ=2</text>
+                    </svg>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. 有向图度数 -->
+        <div class="card card-directed">
+            <div class="card-header">
+                2. 有向图的出度与入度 (Directed)
+                <div>
+                    <span class="badge" style="background:var(--green-out)">deg+</span>
+                    <span class="badge" style="background:var(--red-in)">deg-</span>
+                </div>
+            </div>
+            <div class="formula-block">
+                总度数 deg(v) = <span style="color:var(--green-out)">出度 deg+(v)</span> + <span style="color:var(--red-in)">入度 deg-(v)</span>
+            </div>
+            <div class="row">
+                <div class="col" style="flex:2;">
+                    <svg viewBox="0 0 400 150">
+                        <defs>
+                            <marker id="arrow-g" markerWidth="10" markerHeight="10" refX="24" refY="3" orient="auto">
+                                <path d="M0,0 L0,6 L9,3 z" fill="#43a047" />
+                            </marker>
+                            <marker id="arrow-r" markerWidth="10" markerHeight="10" refX="24" refY="3" orient="auto">
+                                <path d="M0,0 L0,6 L9,3 z" fill="#e53935" />
+                            </marker>
+                        </defs>
+
+                        <!-- v1 -> v2 (v1出, v2入) -->
+                        <line x1="80" y1="75" x2="200" y2="75" class="edge" stroke="#333" marker-end="url(#arrow-g)" />
+                        <!-- v2 -> v3 -->
+                        <line x1="200" y1="75" x2="320" y2="75" class="edge" stroke="#333" marker-end="url(#arrow-g)" />
+                        <!-- v3 -> v2 (Back) -->
+                        <path d="M320,75 Q260,30 200,75" fill="none" stroke="#333" stroke-width="2" marker-end="url(#arrow-g)" />
+                        
+                        <!-- v2 Self Loop -->
+                        <circle cx="200" cy="45" r="20" fill="none" stroke="#333" stroke-width="2" />
+                        <path d="M218,50 L200,75" fill="none" stroke="none" marker-end="url(#arrow-g)" /> <!-- Just for arrow visual -->
+
+                        <!-- Nodes -->
+                        <circle cx="80" cy="75" class="node node-d" />
+                        <text x="80" y="75" class="node-text">v1</text>
+                        <text x="80" y="110" class="deg-label">出:1, 入:0</text>
+
+                        <circle cx="200" cy="75" class="node node-d" />
+                        <text x="200" y="75" class="node-text">v2</text>
+                        <text x="200" y="110" class="deg-label">出:2, 入:2</text>
+                        <text x="200" y="125" font-size="10" fill="#666">(含自环)</text>
+
+                        <circle cx="320" cy="75" class="node node-d" />
+                        <text x="320" y="75" class="node-text">v3</text>
+                        <text x="320" y="110" class="deg-label">出:1, 入:1</text>
+                    </svg>
+                </div>
+                <div class="col">
+                    <ul style="line-height:1.8;">
+                        <li><strong>出度 (Out):</strong> 以 v 为<span style="color:var(--green-out)">起点</span>的边数。</li>
+                        <li><strong>入度 (In):</strong> 以 v 为<span style="color:var(--red-in)">终点</span>的边数。</li>
+                        <li><strong>最大/小出度:</strong> Δ+, δ+</li>
+                        <li><strong>最大/小入度:</strong> Δ-, δ-</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. 特殊度数 -->
+        <div class="card card-special">
+            <div class="card-header">
+                3. 若干特殊度数 (Special Cases)
+                <span class="badge" style="background:var(--orange-spec)">悬挂 & 正则</span>
+            </div>
+            <div class="row">
+                <!-- 悬挂节点 -->
+                <div class="col" style="text-align:center;">
+                    <h4>悬挂节点 (Pendant)</h4>
+                    <p>度数 = 1 的节点 (以及连着的悬挂边)</p>
+                    <svg viewBox="0 0 200 100" style="height:100px;">
+                        <line x1="50" y1="50" x2="150" y2="50" class="edge" stroke="#fb8c00" />
+                        <circle cx="50" cy="50" class="node" style="stroke:#333;" />
+                        <circle cx="150" cy="50" class="node" style="stroke:#fb8c00; fill:#fff3e0;" />
+                        <text x="150" y="50" class="node-text" fill="#e65100">P</text>
+                        <text x="150" y="80" class="deg-label" fill="#e65100">deg=1</text>
+                    </svg>
+                </div>
+                <!-- 正则图 -->
+                <div class="col" style="text-align:center;">
+                    <h4>k-正则图 (Regular)</h4>
+                    <p>所有节点度数均相同 (k)</p>
+                    <svg viewBox="0 0 200 100" style="height:100px;">
+                        <polygon points="100,10 40,80 160,80" stroke="#333" stroke-width="2" fill="none"/>
+                        <circle cx="100" cy="10" class="node" style="r:10;"/><text x="100" y="30" font-size="10">2</text>
+                        <circle cx="40" cy="80" class="node" style="r:10;"/><text x="25" y="80" font-size="10">2</text>
+                        <circle cx="160" cy="80" class="node" style="r:10;"/><text x="175" y="80" font-size="10">2</text>
+                        <text x="100" y="60" font-size="12" fill="#666">2-正则图</text>
+                    </svg>
+                </div>
+                <!-- 孤立节点 -->
+                <div class="col" style="text-align:center;">
+                    <h4>孤立节点 (Isolated)</h4>
+                    <p>度数 = 0 的节点</p>
+                    <svg viewBox="0 0 100 100" style="height:100px;">
+                        <circle cx="50" cy="50" class="node" style="stroke:#999;" />
+                        <text x="50" y="50" class="node-text">I</text>
+                        <text x="50" y="80" class="deg-label" fill="#999">deg=0</text>
+                    </svg>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. PPT 例题详解 -->
+        <div class="card card-ex">
+            <div class="card-header">
+                4. PPT 例题详解 (Example Solution)
+                <span class="badge" style="background:#673ab7">Solution</span>
+            </div>
+            <p><strong>题目：</strong>求各结点的度数、出度、入度及最大/最小值，并指出悬挂结点。</p>
+            
+            <div class="row">
+                <!-- 左侧：根据答案复原的图 -->
+                <div class="col" style="flex:1.5;">
+                    <svg viewBox="0 0 350 220">
+                        <defs>
+                            <marker id="arrow-ex" markerWidth="8" markerHeight="8" refX="22" refY="3" orient="auto">
+                                <path d="M0,0 L0,6 L9,3 z" fill="#333" />
+                            </marker>
+                        </defs>
+                        
+                        <!-- Layout based on solution:
+                             v2 is the hub with self loop.
+                             v1 connects to v2.
+                             v3 connects to v1, v2, v4.
+                             v4 is pendant.
+                             v5 is isolated.
+                        -->
+                        
+                        <!-- v2 Self Loop (e) -->
+                        <path d="M60,150 C30,120 30,180 60,150" fill="none" stroke="#333" stroke-width="2" marker-end="url(#arrow-ex)"/>
+                        
+                        <!-- v1 -> v2 -->
+                        <line x1="140" y1="50" x2="60" y2="150" class="edge" stroke="#333" marker-end="url(#arrow-ex)" />
+                        
+                        <!-- v2 -> v3 -->
+                        <line x1="60" y1="150" x2="220" y2="150" class="edge" stroke="#333" marker-end="url(#arrow-ex)" />
+                        
+                        <!-- v3 -> v1 -->
+                        <line x1="220" y1="150" x2="140" y2="50" class="edge" stroke="#333" marker-end="url(#arrow-ex)" />
+                        
+                        <!-- v3 -> v2 (Back) - curved -->
+                        <path d="M220,150 Q140,190 60,150" fill="none" stroke="#333" stroke-width="2" marker-end="url(#arrow-ex)" />
+                        
+                        <!-- v3 -> v4 -->
+                        <line x1="220" y1="150" x2="300" y2="80" class="edge" stroke="#333" marker-end="url(#arrow-ex)" />
+
+                        <!-- Nodes -->
+                        <circle cx="140" cy="50" class="node" style="stroke:#673ab7"/><text x="140" y="50" class="node-text">v1</text>
+                        <circle cx="60" cy="150" class="node" style="stroke:#673ab7"/><text x="60" y="150" class="node-text">v2</text>
+                        <circle cx="220" cy="150" class="node" style="stroke:#673ab7"/><text x="220" y="150" class="node-text">v3</text>
+                        
+                        <!-- Pendant -->
+                        <circle cx="300" cy="80" class="node" style="stroke:#fb8c00; fill:#fff3e0;"/><text x="300" y="80" class="node-text" fill="#e65100">v4</text>
+                        <text x="300" y="105" font-size="10" fill="#e65100" text-anchor="middle">悬挂点</text>
+
+                        <!-- Isolated -->
+                        <circle cx="300" cy="180" class="node" style="stroke:#999;"/><text x="300" y="180" class="node-text">v5</text>
+                        <text x="300" y="205" font-size="10" fill="#999" text-anchor="middle">孤立点</text>
+
+                    </svg>
+                </div>
+
+                <!-- 右侧：详细数据表 -->
+                <div class="col">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>节点</th>
+                                <th>出度 deg+</th>
+                                <th>入度 deg-</th>
+                                <th>总度数 deg</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>v1</td>
+                                <td class="val-out">1</td>
+                                <td class="val-in">1</td>
+                                <td class="val-tot">2</td>
+                            </tr>
+                            <tr>
+                                <td>v2</td>
+                                <td class="val-out">2 <span style="font-size:0.8em; color:#999">(环+1)</span></td>
+                                <td class="val-in">3 <span style="font-size:0.8em; color:#999">(环+2)</span></td>
+                                <td class="val-tot">5</td>
+                            </tr>
+                            <tr>
+                                <td>v3</td>
+                                <td class="val-out">3</td>
+                                <td class="val-in">1</td>
+                                <td class="val-tot">4</td>
+                            </tr>
+                            <tr style="background:#fff3e0;">
+                                <td><strong>v4</strong></td>
+                                <td class="val-out">0</td>
+                                <td class="val-in">1</td>
+                                <td class="val-tot">1 (悬挂)</td>
+                            </tr>
+                            <tr>
+                                <td>v5</td>
+                                <td class="val-out">0</td>
+                                <td class="val-in">0</td>
+                                <td class="val-tot">0</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    
+                    <div style="margin-top:15px; background:#f3e5f5; padding:10px; border-radius:6px; font-size:0.9rem;">
+                        <strong>统计结果：</strong><br>
+                        最大出度 Δ+ = 3 (v3)<br>
+                        最大入度 Δ- = 3 (v2)<br>
+                        最小总度 δ = 0 (v5)<br>
+                        <strong>悬挂边：</strong> (v3, v4)
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>
