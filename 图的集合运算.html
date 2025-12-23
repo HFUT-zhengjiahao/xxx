@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图的集合运算</title>
+    <style>
+        :root {
+            --bg-color: #f5f7fa;
+            --card-bg: #ffffff;
+            --text-main: #2c3e50;
+            --text-sub: #7f8c8d;
+            
+            /* 颜色系统 */
+            --c-g1: #2196F3;   /* 蓝色 G1 */
+            --c-g2: #f44336;   /* 红色 G2 */
+            --c-mix: #9C27B0;  /* 紫色 (交集) */
+            --c-node: #fff;
+            --c-border: #34495e;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            max-width: 800px;
+        }
+
+        h1 { color: var(--text-main); margin-bottom: 10px; font-size: 2rem; }
+        .legend {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            font-size: 0.9rem;
+            margin-top: 10px;
+            background: white;
+            padding: 10px 20px;
+            border-radius: 50px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+
+        /* 布局容器 */
+        .main-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 25px;
+            width: 100%;
+            max-width: 1100px;
+        }
+
+        /* 顶部输入区：基础图 */
+        .input-section {
+            grid-column: 1 / -1;
+            display: flex;
+            gap: 25px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        /* 卡片样式 */
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            padding: 20px;
+            transition: transform 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            border-top: 4px solid transparent;
+        }
+
+        .card:hover { transform: translateY(-3px); }
+
+        /* 卡片标题与公式 */
+        .card-title {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .formula-box {
+            background: #f0f2f5;
+            padding: 8px 15px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            color: #455a64;
+            margin-bottom: 15px;
+            width: 90%;
+            text-align: center;
+        }
+        .set-eq { display: block; margin-top: 4px; color: #78909c; font-size: 0.8rem; }
+
+        /* SVG 绘图 */
+        svg { overflow: visible; width: 240px; height: 160px; }
+        
+        .edge { stroke-width: 3px; stroke-linecap: round; transition: all 0.3s; }
+        .node { r: 12; fill: var(--c-node); stroke: var(--c-border); stroke-width: 2px; }
+        .node-text { font-size: 12px; text-anchor: middle; dominant-baseline: middle; fill: #333; font-weight: bold; pointer-events: none; }
+        
+        /* 虚线用于表示“不存在但占位”的元素，方便对比 */
+        .ghost-edge { stroke: #e0e0e0; stroke-width: 2px; stroke-dasharray: 4 4; }
+        .ghost-node { r: 10; fill: #f9f9f9; stroke: #e0e0e0; stroke-width: 1px; }
+        .ghost-text { fill: #ccc; }
+
+        /* 具体配色类 */
+        .g1-only { stroke: var(--c-g1); }
+        .g2-only { stroke: var(--c-g2); }
+        .shared { stroke: var(--c-mix); }
+        
+        .card.c-union { border-top-color: #333; }
+        .card.c-inter { border-top-color: var(--c-mix); }
+        .card.c-diff { border-top-color: var(--c-g1); }
+        .card.c-ring { border-top-color: #FF9800; }
+
+        @media (max-width: 768px) {
+            .main-grid { grid-template-columns: 1fr; }
+            .input-section { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>图的集合运算</h1>
+        <div class="legend">
+            <span><span class="dot" style="background:var(--c-g1)"></span>属于 G1</span>
+            <span><span class="dot" style="background:var(--c-g2)"></span>属于 G2</span>
+            <span><span class="dot" style="background:var(--c-mix)"></span>共有 (G1 ∩ G2)</span>
+        </div>
+    </header>
+
+    <div class="main-grid">
+        
+        <!-- 输入区域：展示基础图 G1 和 G2 -->
+        <div class="input-section">
+            <div class="card" style="border-top: 4px solid var(--c-g1);">
+                <div class="card-title" style="color:var(--c-g1)">G1 (Input)</div>
+                <div class="formula-box">V1={a,b,c}, E1={(a,b), (b,c), (c,a)}</div>
+                <svg>
+                    <!-- 拓扑结构：三角形 abc -->
+                    <line x1="120" y1="30" x2="60" y2="130" class="edge g1-only" /> <!-- a-b -->
+                    <line x1="60" y1="130" x2="180" y2="130" class="edge shared" /> <!-- b-c (G2也有) -->
+                    <line x1="180" y1="130" x2="120" y2="30" class="edge g1-only" /> <!-- c-a -->
+                    
+                    <!-- Nodes -->
+                    <circle cx="120" cy="30" class="node" /> <text x="120" y="31" class="node-text">a</text>
+                    <circle cx="60" cy="130" class="node" /> <text x="60" y="131" class="node-text">b</text>
+                    <circle cx="180" cy="130" class="node" /> <text x="180" y="131" class="node-text">c</text>
+                    
+                    <!-- Ghost for G2 part -->
+                    <circle cx="240" cy="80" class="ghost-node" /> <text x="240" y="81" class="node-text ghost-text">d</text>
+                </svg>
+            </div>
+
+            <div class="card" style="border-top: 4px solid var(--c-g2);">
+                <div class="card-title" style="color:var(--c-g2)">G2 (Input)</div>
+                <div class="formula-box">V2={b,c,d}, E2={(b,c), (c,d)}</div>
+                <svg>
+                    <!-- 拓扑结构：线段 b-c-d -->
+                    <line x1="120" y1="30" x2="60" y2="130" class="ghost-edge" /> <!-- a-b ghost -->
+                    <line x1="60" y1="130" x2="180" y2="130" class="edge shared" /> <!-- b-c -->
+                    <line x1="180" y1="130" x2="240" y2="80" class="edge g2-only" /> <!-- c-d -->
+                    <line x1="180" y1="130" x2="120" y2="30" class="ghost-edge" /> <!-- c-a ghost -->
+
+                    <!-- Nodes -->
+                    <circle cx="120" cy="30" class="ghost-node" /> <text x="120" y="31" class="node-text ghost-text">a</text>
+                    <circle cx="60" cy="130" class="node" /> <text x="60" y="131" class="node-text">b</text>
+                    <circle cx="180" cy="130" class="node" /> <text x="180" y="131" class="node-text">c</text>
+                    <circle cx="240" cy="80" class="node" /> <text x="240" y="81" class="node-text">d</text>
+                </svg>
+            </div>
+        </div>
+
+        <!-- 运算 1: 并图 -->
+        <div class="card c-union">
+            <div class="card-title">1. 并图 (Union)</div>
+            <div class="formula-box">
+                G1 ∪ G2
+                <span class="set-eq">V = V1 ∪ V2, E = E1 ∪ E2</span>
+            </div>
+            <svg>
+                <!-- 全部边 -->
+                <line x1="120" y1="30" x2="60" y2="130" class="edge g1-only" />
+                <line x1="60" y1="130" x2="180" y2="130" class="edge shared" />
+                <line x1="180" y1="130" x2="120" y2="30" class="edge g1-only" />
+                <line x1="180" y1="130" x2="240" y2="80" class="edge g2-only" />
+
+                <!-- 全部点 -->
+                <circle cx="120" cy="30" class="node" /> <text x="120" y="31" class="node-text">a</text>
+                <circle cx="60" cy="130" class="node" /> <text x="60" y="131" class="node-text">b</text>
+                <circle cx="180" cy="130" class="node" /> <text x="180" y="131" class="node-text">c</text>
+                <circle cx="240" cy="80" class="node" /> <text x="240" y="81" class="node-text">d</text>
+            </svg>
+        </div>
+
+        <!-- 运算 2: 交图 -->
+        <div class="card c-inter">
+            <div class="card-title" style="color:var(--c-mix)">2. 交图 (Intersection)</div>
+            <div class="formula-box">
+                G1 ∩ G2
+                <span class="set-eq">V = V1 ∩ V2, E = E1 ∩ E2</span>
+            </div>
+            <svg>
+                <!-- 只有公共边 -->
+                <line x1="120" y1="30" x2="60" y2="130" class="ghost-edge" />
+                <line x1="60" y1="130" x2="180" y2="130" class="edge shared" /> <!-- 只有这条存在 -->
+                <line x1="180" y1="130" x2="120" y2="30" class="ghost-edge" />
+                <line x1="180" y1="130" x2="240" y2="80" class="ghost-edge" />
+
+                <!-- 只有公共点 (b, c) -->
+                <circle cx="120" cy="30" class="ghost-node" /> <text x="120" y="31" class="node-text ghost-text">a</text>
+                <circle cx="60" cy="130" class="node" /> <text x="60" y="131" class="node-text">b</text>
+                <circle cx="180" cy="130" class="node" /> <text x="180" y="131" class="node-text">c</text>
+                <circle cx="240" cy="80" class="ghost-node" /> <text x="240" y="81" class="node-text ghost-text">d</text>
+            </svg>
+        </div>
+
+        <!-- 运算 3: 差图 -->
+        <div class="card c-diff">
+            <div class="card-title" style="color:var(--c-g1)">3. 差图 (Difference)</div>
+            <div class="formula-box">
+                G1 - G2
+                <span class="set-eq">V = V1 (注意!), E = E1 - E2</span>
+            </div>
+            <svg>
+                <!-- G1的边 减去 G2的边 -->
+                <line x1="120" y1="30" x2="60" y2="130" class="edge g1-only" />
+                <line x1="60" y1="130" x2="180" y2="130" class="ghost-edge" /> <!-- b-c被减掉了 -->
+                <line x1="180" y1="130" x2="120" y2="30" class="edge g1-only" />
+                <line x1="180" y1="130" x2="240" y2="80" class="ghost-edge" />
+
+                <!-- V = V1 (点保持G1的点，d不在V1中) -->
+                <circle cx="120" cy="30" class="node" /> <text x="120" y="31" class="node-text">a</text>
+                <circle cx="60" cy="130" class="node" /> <text x="60" y="131" class="node-text">b</text>
+                <circle cx="180" cy="130" class="node" /> <text x="180" y="131" class="node-text">c</text>
+                <circle cx="240" cy="80" class="ghost-node" /> <text x="240" y="81" class="node-text ghost-text">d</text>
+            </svg>
+        </div>
+
+        <!-- 运算 4: 环和 -->
+        <div class="card c-ring">
+            <div class="card-title" style="color:#FF9800">4. 环和 (Ring Sum)</div>
+            <div class="formula-box">
+                G1 ⊕ G2
+                <span class="set-eq">(G1 ∪ G2) - (G1 ∩ G2)</span>
+            </div>
+            <svg>
+                <!-- 只要不重叠的边 -->
+                <line x1="120" y1="30" x2="60" y2="130" class="edge g1-only" />
+                <line x1="60" y1="130" x2="180" y2="130" class="ghost-edge" /> <!-- 重叠边被剔除 -->
+                <line x1="180" y1="130" x2="120" y2="30" class="edge g1-only" />
+                <line x1="180" y1="130" x2="240" y2="80" class="edge g2-only" />
+
+                <!-- 所有点 (因为是并图减去公共边) -->
+                <circle cx="120" cy="30" class="node" /> <text x="120" y="31" class="node-text">a</text>
+                <circle cx="60" cy="130" class="node" /> <text x="60" y="131" class="node-text">b</text>
+                <circle cx="180" cy="130" class="node" /> <text x="180" y="131" class="node-text">c</text>
+                <circle cx="240" cy="80" class="node" /> <text x="240" y="81" class="node-text">d</text>
+            </svg>
+        </div>
+
+    </div>
+
+</body>
+</html>
